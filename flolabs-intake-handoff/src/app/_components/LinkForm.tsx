@@ -13,6 +13,8 @@ import { Turnstile } from './Turnstile';
 
 // Forms 1-3 (T12-T14): renders the form the engine builds from the applicant's programs,
 // keeps a draft in this browser while the applicant types, and posts to /api/forms/<form>.
+// Forms 1 and 2 are multi-step (one step per section: about you, each track, closing) with
+// Back/Next; Form 3 is one page. The whole form is still sent and checked once, at the end.
 
 type Country = { value: string; label: string; callingCode: string };
 
@@ -27,7 +29,8 @@ type ReferenceValues = {
   knownDuration: string;
 };
 type Values = { answers: Record<string, unknown>; references: Record<ReferenceKey, ReferenceValues> };
-type DraftData = Values & { submissionKey: string };
+type DraftData = Values & { submissionKey: string; step?: number };
+type Step = { title: string; sectionIds: readonly string[]; references: boolean; keys: readonly string[] };
 
 const EMPTY_REFERENCE: ReferenceValues = {
   fullName: '',
@@ -122,7 +125,30 @@ function LinkFormInBrowser({ formType, title, endpoint, token, applicationId, pr
   const schema = useMemo(() => linkFormSchema(form, { applicantEmail: prefill.email }), [form, prefill.email]);
   const questions = useMemo(() => answerQuestions(form), [form]);
   const withReferences = formType === 'MASTERCLASS';
+  const multiStep = formType !== 'MASTERCLASS';
   const storageKey = draftKey(formType, applicationId);
+
+  // Error keys per step, in the order the fields appear; Turnstile is on the last step.
+  const steps = useMemo((): Step[] => {
+    const keysOf = (sectionId: string) =>
+      form.sections
+        .find((s) => s.id === sectionId)!
+        .groups.flatMap((g) => g.questions.filter((q) => q.kind !== 'display').map((q) => `answers.${q.id}`));
+    const referenceKeys = REFERENCE_KEYS.flatMap((key) => REFERENCE_FIELDS.map((field) => `references.${key}.${field}`));
+    const list: Step[] = multiStep
+      ? form.sections.map((s) => ({ title: s.title, sectionIds: [s.id], references: false, keys: keysOf(s.id) }))
+      : [
+          {
+            title: '',
+            sectionIds: form.sections.map((s) => s.id),
+            references: withReferences,
+            keys: form.sections.flatMap((s) => [...(s.kind === 'closing' && withReferences ? referenceKeys : []), ...keysOf(s.id)]),
+          },
+        ];
+    const last = list.length - 1;
+    return list.map((step, index) => (index === last ? { ...step, keys: [...step.keys, 'turnstile'] } : step));
+  }, [form, multiStep, withReferences]);
+  const stepOf = (key: string) => Math.max(0, steps.findIndex((s) => s.keys.includes(key)));
 
   // Restore the unsent answers of an earlier visit on this device, if any.
   const [restored] = useState(() => loadDraft<DraftData>(storageKey, form.version));
@@ -130,27 +156,30 @@ function LinkFormInBrowser({ formType, title, endpoint, token, applicationId, pr
   // Kept in the draft too: a retry after a reload still cannot create a second Form Submission.
   const [submissionKey] = useState(() => restored?.data.submissionKey ?? newSubmissionKey());
   const [restoredAt, setRestoredAt] = useState(restored?.savedAt ?? null);
+  const [step, setStep] = useState(() => Math.min(Math.max(restored?.data.step ?? 0, 0), steps.length - 1));
   const [dirty, setDirty] = useState(false);
   const [draftStatus, setDraftStatus] = useState<'idle' | 'saved' | 'unavailable'>('idle');
 
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   const [turnstileReset, setTurnstileReset] = useState(0);
   const [touched, setTouched] = useState<ReadonlySet<string>>(new Set());
-  const [submitted, setSubmitted] = useState(false);
+  // Steps the applicant tried to leave (Next) or send: their errors show even on untouched fields.
+  const [attempted, setAttempted] = useState<ReadonlySet<number>>(new Set());
   const [serverErrors, setServerErrors] = useState<Partial<Record<string, string>>>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [status, setStatus] = useState<'idle' | 'sending' | 'done' | 'already'>('idle');
   const summaryRef = useRef<HTMLDivElement>(null);
+  const topRef = useRef<HTMLFormElement>(null);
   const doneRef = useRef<HTMLHeadingElement>(null);
 
   // Save the draft shortly after each change (never before the applicant has typed anything).
   useEffect(() => {
     if (!dirty || status === 'done' || status === 'already') return;
     const timer = setTimeout(() => {
-      setDraftStatus(saveDraft<DraftData>(storageKey, form.version, { ...values, submissionKey }) ? 'saved' : 'unavailable');
+      setDraftStatus(saveDraft<DraftData>(storageKey, form.version, { ...values, submissionKey, step }) ? 'saved' : 'unavailable');
     }, 400);
     return () => clearTimeout(timer);
-  }, [dirty, values, status, storageKey, form.version, submissionKey]);
+  }, [dirty, values, step, status, storageKey, form.version, submissionKey]);
 
   const request = useMemo(() => toRequest(questions, values, withReferences), [questions, values, withReferences]);
   const errors = useMemo((): Partial<Record<string, string>> => {
@@ -162,20 +191,9 @@ function LinkFormInBrowser({ formType, title, endpoint, token, applicationId, pr
     };
   }, [schema, request, submissionKey, turnstileToken, serverErrors]);
 
-  // Error keys in the order the fields appear: questions, references (before the closing question), Turnstile.
-  const fieldOrder = useMemo(() => {
-    const order: string[] = [];
-    for (const section of form.sections) {
-      if (section.kind === 'closing' && withReferences) {
-        for (const key of REFERENCE_KEYS) for (const field of REFERENCE_FIELDS) order.push(`references.${key}.${field}`);
-      }
-      for (const group of section.groups) for (const q of group.questions) if (q.kind !== 'display') order.push(`answers.${q.id}`);
-    }
-    order.push('turnstile');
-    return order;
-  }, [form, withReferences]);
-
-  const visibleErrors = fieldOrder.filter((key) => errors[key] && (submitted || touched.has(key)));
+  const current = steps[step]!;
+  const isLast = step === steps.length - 1;
+  const visibleErrors = current.keys.filter((key) => errors[key] && (attempted.has(step) || touched.has(key)));
   const errorFor = (key: string) => (visibleErrors.includes(key) ? errors[key] : undefined);
   const touch = (key: string) => setTouched((current) => (current.has(key) ? current : new Set(current).add(key)));
   const describedBy = (key: string, hint?: boolean) =>
@@ -203,26 +221,52 @@ function LinkFormInBrowser({ formType, title, endpoint, token, applicationId, pr
     setRestoredAt(null);
     setDraftStatus('idle');
     setTouched(new Set());
-    setSubmitted(false);
+    setAttempted(new Set());
     setServerErrors({});
+    goToStep(0);
+  }
+
+  function goToStep(next: number) {
+    // The Turnstile widget lives on the last step; a token from an unmounted widget is not reused.
+    if (next !== steps.length - 1) setTurnstileToken(null);
+    setStep(next);
+    setFormError(null);
+    if (multiStep) setDirty(true);
+    requestAnimationFrame(() => topRef.current?.scrollIntoView({ block: 'start' }));
   }
 
   function focusFirstError(found: Partial<Record<string, string>>) {
-    const first = fieldOrder.find((key) => found[key]);
-    summaryRef.current?.focus();
-    if (first) document.getElementById(id(first))?.scrollIntoView({ block: 'center' });
+    const first = steps.flatMap((s) => s.keys).find((key) => found[key]);
+    if (!first) return;
+    const target = stepOf(first);
+    setAttempted((done) => new Set(done).add(target));
+    if (target !== step) setStep(target);
+    requestAnimationFrame(() => {
+      summaryRef.current?.focus();
+      document.getElementById(id(first))?.scrollIntoView({ block: 'center' });
+    });
   }
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (status === 'sending') return;
-    setSubmitted(true);
     setFormError(null);
 
+    // Next: only this step's questions must be valid.
+    if (!isLast) {
+      setAttempted((done) => new Set(done).add(step));
+      if (current.keys.some((key) => errors[key])) {
+        requestAnimationFrame(() => focusFirstError(errors));
+        return;
+      }
+      goToStep(step + 1);
+      return;
+    }
+
+    setAttempted(new Set(steps.map((_, index) => index)));
     const check = schema.safeParse({ ...request, submissionKey });
     if (!check.success || !turnstileToken) {
-      const found = { ...(check.success ? {} : fieldErrors(check.error)), ...(!turnstileToken && { turnstile: TURNSTILE_MESSAGE }) };
-      requestAnimationFrame(() => focusFirstError(found));
+      focusFirstError({ ...(check.success ? {} : fieldErrors(check.error)), ...(!turnstileToken && { turnstile: TURNSTILE_MESSAGE }) });
       return;
     }
 
@@ -245,7 +289,7 @@ function LinkFormInBrowser({ formType, title, endpoint, token, applicationId, pr
       setStatus('idle');
       if (response.status === 400 && result?.error?.fields) {
         setServerErrors(result.error.fields);
-        requestAnimationFrame(() => focusFirstError(result.error.fields));
+        focusFirstError(result.error.fields);
       }
       setFormError(typeof result?.error?.message === 'string' ? result.error.message : GENERIC_ERROR);
     } catch {
@@ -540,27 +584,49 @@ function LinkFormInBrowser({ formType, title, endpoint, token, applicationId, pr
   );
 
   return (
-    <form className={styles.card} onSubmit={onSubmit} noValidate aria-busy={status === 'sending'} aria-label={title}>
-      <div className={styles.draftNote}>
-        {restoredAt && (
-          <p>
-            <strong>Welcome back.</strong> We restored the answers you had not sent yet (saved on this device on{' '}
-            {new Date(restoredAt).toLocaleString()}).
+    <form ref={topRef} className={`${styles.card} ${styles.stepForm}`} onSubmit={onSubmit} noValidate aria-busy={status === 'sending'} aria-label={title}>
+      <section className={styles.applicant} aria-label="Your details">
+        <dl className={styles.prefill}>
+          <dt>Full name</dt>
+          <dd>{prefill.fullName || '—'}</dd>
+          <dt>Email</dt>
+          <dd>{prefill.email || '—'}</dd>
+          <dt>Program{prefill.programs.length === 1 ? '' : 's'} applied for</dt>
+          <dd>{prefill.programs.join(', ') || '—'}</dd>
+        </dl>
+        {formType === 'CONTACTED' &&
+          step === 0 &&
+          form.trackStatements.map((s) => (
+            <p key={s.program} className={styles.statement}>
+              {s.text}
+            </p>
+          ))}
+        {step === 0 && <p className={styles.hint}>These details come from your application. If something is wrong, write to {HR_EMAIL}.</p>}
+      </section>
+
+      {multiStep && (
+        <nav aria-label="Form steps" className={styles.progress}>
+          <p className={styles.stepCount}>
+            Step {step + 1} of {steps.length}
           </p>
-        )}
-        <p>
-          {draftStatus === 'unavailable'
-            ? 'Your browser does not allow us to save a draft, so please complete the form in one visit.'
-            : 'Your answers are saved on this device as you type, until you send the form. On a shared computer, clear your draft before you leave.'}{' '}
-          {draftStatus === 'saved' && <span className={styles.savedNote}>Draft saved.</span>}
-        </p>
-        <button type="button" className={styles.secondary} onClick={onClearDraft}>
-          Clear my draft
-        </button>
-      </div>
+          <ol className={styles.steps}>
+            {steps.map((s, index) => (
+              <li key={s.title} className={index === step ? styles.stepCurrent : index < step ? styles.stepDone : undefined} aria-current={index === step ? 'step' : undefined}>
+                {index < step ? (
+                  <button type="button" className={styles.stepLink} onClick={() => goToStep(index)}>
+                    {s.title}
+                  </button>
+                ) : (
+                  <span>{s.title}</span>
+                )}
+              </li>
+            ))}
+          </ol>
+        </nav>
+      )}
 
       <div ref={summaryRef} tabIndex={-1} className={styles.summaryAnchor}>
-        {submitted && visibleErrors.length > 0 && (
+        {attempted.has(step) && visibleErrors.length > 0 && (
           <div className={styles.summary} role="alert">
             <h2 className={styles.summaryTitle}>
               Please fix {visibleErrors.length === 1 ? 'this answer' : `these ${visibleErrors.length} answers`}:
@@ -576,50 +642,31 @@ function LinkFormInBrowser({ formType, title, endpoint, token, applicationId, pr
         )}
       </div>
 
-      <section className={styles.section} aria-labelledby={id('you')}>
-        <h2 id={id('you')} className={styles.sectionTitle}>
-          Your application
-        </h2>
-        <dl className={styles.prefill}>
-          <dt>Full name</dt>
-          <dd>{prefill.fullName || '—'}</dd>
-          <dt>Email</dt>
-          <dd>{prefill.email || '—'}</dd>
-          <dt>Program{prefill.programs.length === 1 ? '' : 's'} applied for</dt>
-          <dd>{prefill.programs.join(', ') || '—'}</dd>
-        </dl>
-        {formType === 'CONTACTED' &&
-          form.trackStatements.map((s) => (
-            <p key={s.program} className={styles.statement}>
-              {s.text}
-            </p>
-          ))}
-        <p className={styles.hint}>
-          These details come from your application. If something is wrong, write to {HR_EMAIL}.
-        </p>
-      </section>
+      {form.sections
+        .filter((section) => current.sectionIds.includes(section.id))
+        .map((section) => [
+          section.kind === 'closing' && current.references ? referencesBlock : null,
+          <fieldset key={section.id} className={styles.section}>
+            <legend className={styles.sectionTitle}>{section.title}</legend>
+            {section.groups.map((group, index) =>
+              group.title ? (
+                <fieldset key={group.title} className={styles.track}>
+                  <legend className={styles.trackTitle}>{group.title}</legend>
+                  {group.questions.map(renderQuestion)}
+                </fieldset>
+              ) : (
+                <div key={`group-${index}`}>{group.questions.map(renderQuestion)}</div>
+              ),
+            )}
+          </fieldset>,
+        ])}
 
-      {form.sections.map((section) => [
-        section.kind === 'closing' && withReferences ? referencesBlock : null,
-        <fieldset key={section.id} className={styles.section}>
-          <legend className={styles.sectionTitle}>{section.title}</legend>
-          {section.groups.map((group, index) =>
-            group.title ? (
-              <fieldset key={group.title} className={styles.track}>
-                <legend className={styles.trackTitle}>{group.title}</legend>
-                {group.questions.map(renderQuestion)}
-              </fieldset>
-            ) : (
-              <div key={`group-${index}`}>{group.questions.map(renderQuestion)}</div>
-            ),
-          )}
-        </fieldset>,
-      ])}
-
-      <div className={styles.field} id={id('turnstile')} tabIndex={-1}>
-        <Turnstile siteKey={turnstileSiteKey} action={TURNSTILE_ACTIONS[formType]} resetKey={turnstileReset} onToken={setTurnstileToken} />
-        {errorFor('turnstile') && <ErrorText id={`${id('turnstile')}-error`}>{errorFor('turnstile')}</ErrorText>}
-      </div>
+      {isLast && (
+        <div className={styles.field} id={id('turnstile')} tabIndex={-1}>
+          <Turnstile siteKey={turnstileSiteKey} action={TURNSTILE_ACTIONS[formType]} resetKey={turnstileReset} onToken={setTurnstileToken} />
+          {errorFor('turnstile') && <ErrorText id={`${id('turnstile')}-error`}>{errorFor('turnstile')}</ErrorText>}
+        </div>
+      )}
 
       {formError && (
         <p className={styles.formError} role="alert">
@@ -627,9 +674,26 @@ function LinkFormInBrowser({ formType, title, endpoint, token, applicationId, pr
         </p>
       )}
 
-      <button type="submit" className={styles.submit} disabled={status === 'sending'}>
-        {status === 'sending' ? 'Sending…' : 'Send my answers'}
-      </button>
+      <div className={styles.stepButtons}>
+        {step > 0 && (
+          <button type="button" className={styles.secondary} onClick={() => goToStep(step - 1)} disabled={status === 'sending'}>
+            Back
+          </button>
+        )}
+        <button type="submit" className={styles.submit} disabled={status === 'sending'}>
+          {!isLast ? 'Next' : status === 'sending' ? 'Sending…' : 'Send my answers'}
+        </button>
+      </div>
+
+      <p className={styles.draftLine}>
+        {restoredAt && <>We restored the answers you had not sent yet. </>}
+        {draftStatus === 'unavailable'
+          ? 'Your browser does not allow saving a draft, so please complete the form in one visit.'
+          : 'Your answers are saved on this device until you send them.'}{' '}
+        <button type="button" className={styles.linkButton} onClick={onClearDraft}>
+          Clear my draft
+        </button>
+      </p>
     </form>
   );
 }

@@ -9,7 +9,7 @@ import { LinkGate } from './LinkGate';
 // read-only details (D4) and programs. The token goes back with the answers for the server check.
 
 export function LinkFormPage({ token, formType }: { token: string | string[] | undefined; formType: LinkFormType }) {
-  const { label, path } = LINK_FORM_TYPES[formType];
+  const { title, path } = LINK_FORM_TYPES[formType];
   // Country names are built here once so server and browser render identical labels.
   const countries = formType === 'MASTERCLASS' ? COUNTRIES.map(({ value, label, callingCode }) => ({ value, label, callingCode })) : undefined;
 
@@ -18,7 +18,7 @@ export function LinkFormPage({ token, formType }: { token: string | string[] | u
       {(application) => (
         <LinkForm
           formType={formType}
-          title={label}
+          title={title}
           endpoint={`/api/forms/${path}`}
           token={token as string}
           applicationId={application.id}

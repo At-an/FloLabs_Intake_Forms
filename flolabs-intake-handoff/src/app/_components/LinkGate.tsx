@@ -47,7 +47,8 @@ export async function LinkGate({
   return (
     <main className={styles.page}>
       <header className={styles.header}>
-        <h1>{LINK_FORM_TYPES[formType].label}</h1>
+        <h1>{LINK_FORM_TYPES[formType].title}</h1>
+        {result.ok && <p className={styles.lead}>{LINK_FORM_TYPES[formType].lead}</p>}
       </header>
       {result.ok ? (
         children(result.application)

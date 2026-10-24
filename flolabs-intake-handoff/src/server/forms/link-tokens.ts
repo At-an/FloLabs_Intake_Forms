@@ -6,10 +6,27 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
 // single use is enforced by an existing Form Submission. Rotating LINK_TOKEN_SECRET revokes
 // every unused link. Self-contained (node:crypto only) so scripts/make-form-link.mts can use it.
 
+// `label`: internal name for HR (make-link output, Form Submission record names in Twenty).
+// `title` and `lead`: what the applicant sees at the top of the page.
 export const LINK_FORM_TYPES = {
-  CONTACTED: { path: 'contacted', label: 'Form 1 (Contacted)' },
-  BEFORE_MEETING: { path: 'before-meeting', label: 'Form 2 (Before Meeting)' },
-  MASTERCLASS: { path: 'masterclass', label: 'Form 3 (Masterclass)' },
+  CONTACTED: {
+    path: 'contacted',
+    label: 'Form 1 (Contacted)',
+    title: 'Tell Us More About You',
+    lead: 'Thank you for applying. These questions help us understand your interests, experience and availability.',
+  },
+  BEFORE_MEETING: {
+    path: 'before-meeting',
+    label: 'Form 2 (Before Meeting)',
+    title: 'Getting Ready for Your Orientation',
+    lead: 'Before we meet, tell us what you think of the work you have seen and where you could contribute.',
+  },
+  MASTERCLASS: {
+    path: 'masterclass',
+    label: 'Form 3 (Masterclass)',
+    title: 'Final Steps Before Your Interview',
+    lead: 'Tell us how you see your next steps, and share two references.',
+  },
 } as const;
 
 export type LinkFormType = keyof typeof LINK_FORM_TYPES;

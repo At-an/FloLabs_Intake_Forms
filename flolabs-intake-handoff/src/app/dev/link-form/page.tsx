@@ -21,13 +21,14 @@ export default async function LinkFormPreviewPage({ searchParams }: Props) {
   const { form = 'contacted', programs = 'UI_UX_DESIGN_INTERN' } = await searchParams;
   const entry = Object.entries(LINK_FORM_TYPES).find(([, v]) => v.path === form);
   if (!entry) notFound();
-  const [formType, { label, path }] = entry as [LinkFormType, (typeof LINK_FORM_TYPES)[LinkFormType]];
+  const [formType, { title, lead, path }] = entry as [LinkFormType, (typeof LINK_FORM_TYPES)[LinkFormType]];
   const chosen = programs.split(',').filter((p) => PROGRAMS.some((program) => program.value === p));
 
   return (
     <main className={styles.page}>
       <header className={styles.header}>
-        <h1>{label}</h1>
+        <h1>{title}</h1>
+        <p className={styles.lead}>{lead}</p>
         <p className={styles.lead}>
           Preview (development only). Try <code>?form=before-meeting</code> or <code>?form=masterclass</code>, and{' '}
           <code>&amp;programs=AI_AGI_INTERN,FINANCE_INTERN</code>.
@@ -35,7 +36,7 @@ export default async function LinkFormPreviewPage({ searchParams }: Props) {
       </header>
       <LinkForm
         formType={formType}
-        title={label}
+        title={title}
         endpoint={`/api/forms/${path}`}
         token="preview"
         applicationId={PREVIEW_APPLICATION_ID}

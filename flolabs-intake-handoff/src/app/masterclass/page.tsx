@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { LINK_FORM_TYPES } from '@/server/forms/link-tokens';
 import { LinkFormPage } from '../_components/LinkFormPage';
 
-export const metadata: Metadata = { title: `${LINK_FORM_TYPES.MASTERCLASS.label} | FloLabs` };
+export const metadata: Metadata = { title: `${LINK_FORM_TYPES.MASTERCLASS.title} | FloLabs` };
 export const dynamic = 'force-dynamic';
 
 type Props = { searchParams: Promise<{ t?: string | string[] }> };

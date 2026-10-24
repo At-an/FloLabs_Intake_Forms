@@ -347,19 +347,90 @@
   cursor: pointer;
 }
 
-.draftNote {
-  border: 1px solid var(--border);
-  background: var(--input-bg);
-  border-radius: 6px;
-  padding: 10px 14px;
+/* Applicant details at the top of Forms 1-3 */
+.applicant {
   margin-bottom: 24px;
-  font-size: 0.9rem;
 }
 
-.draftNote p {
+.applicant .prefill {
+  font-size: 1.15rem;
+}
+
+.applicant .prefill dt {
+  font-size: 1rem;
+}
+
+.applicant .prefill dd {
+  font-weight: 600;
+}
+
+/* Multi-step forms (Forms 1 and 2) */
+.stepForm {
+  scroll-margin-top: 16px;
+}
+
+.progress {
+  margin-bottom: 20px;
+}
+
+.stepCount {
   margin: 0 0 8px;
+  font-weight: 600;
+  color: var(--muted);
 }
 
-.savedNote {
-  color: var(--success);
+.steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: step;
+}
+
+.steps li {
+  counter-increment: step;
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+.steps li::before {
+  content: counter(step) '. ';
+}
+
+.stepCurrent {
+  border-color: var(--accent) !important;
+  color: var(--text) !important;
+  font-weight: 600;
+}
+
+.stepDone {
+  color: var(--text) !important;
+}
+
+.stepLink,
+.linkButton {
+  padding: 0;
+  font: inherit;
+  color: var(--accent);
+  background: none;
+  border: 0;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.stepButtons {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.draftLine {
+  margin: 16px 0 0;
+  color: var(--muted);
+  font-size: 0.85rem;
 }
