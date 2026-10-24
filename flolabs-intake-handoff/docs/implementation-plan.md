@@ -87,7 +87,7 @@ Checkpoint A: tests and build pass; you review the schema map. (Schema decisions
 - AC: "View CV" link on the Application opens an overlay; access requires a logged-in FloLabs user (Cloudflare Access); the file is served through a short-lived presigned URL; DOCX is converted to PDF at upload so every CV displays in the overlay.
 - Verify: logged-out request is refused; link expires after 15 minutes.
 
-**T7 Turnstile + rate limits.** S
+**T7 Turnstile + rate limits.** S. **Done 2026-10-24**: server order IP limit (10 / 10 min) -> validation -> email limit (5 valid submissions / hour, hashed keys) -> Turnstile siteverify (action `application`, fails closed) -> Twenty. 403 BOT_CHECK_FAILED / 429 + Retry-After. Widget on `/apply`, reset after each attempt. Dev uses Cloudflare test keys; production refuses to start without real keys. In-flight lock per submissionKey closes the T5 race. Limits are in memory (one server); several servers need a shared store or Cloudflare rate-limiting rules.
 - AC: server rejects missing/invalid Turnstile tokens before any Twenty or R2 call; rate limit per IP and per email; idempotency via submissionKey (T5).
 - Verify: test with Cloudflare's always-fail key; a burst of requests gets HTTP 429.
 
@@ -139,7 +139,7 @@ Pipeline automation (status changes, emails to applicants), Lifecycle/Lead Statu
 | Twenty API names/format differ from the UI labels | High | T1 before any code (gate in T1) |
 | Multi-select stores API values, not labels | Med | Map value<->label in the config; never send labels (T4) |
 | Embeds blocked or framing abused | Med | frame-ancestors allow-list; one embed route (T6b) |
-| Spam through public forms | Med | Turnstile + rate limits + idempotency (T5, T7) |
+| Spam through public forms | Med | Turnstile + rate limits + idempotency (T5, T7; done) |
 | PII exposure in logs/errors | High | Structured logs with IDs only; generic errors (T3) |
 | Malicious or oversized CV uploads | Med | Type check by file signature, 5 MB cap, private bucket (T6c) |
 | Non-expiring link forwarded or leaked before use | Low | Single use; token bound to one Application + formType; rotating `LINK_TOKEN_SECRET` revokes all unused links (T10) |

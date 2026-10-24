@@ -2,19 +2,28 @@ import 'server-only';
 import { applicationSchema, fieldErrors } from '@/shared/forms/application';
 import { CV_MESSAGES, MAX_CV_BYTES } from '@/shared/forms/cv';
 import { AppError, errorCodeOf, toPublicError } from '../errors';
+import { clientIp, type RateLimiter } from '../rate-limit';
+import type { VerifyHuman } from '../turnstile';
 import { TwentyError } from '../twenty/client';
 import { checkCv } from './cv';
-import { submitApplication, type SubmitDeps } from './submit';
+import { submitApplication, type SubmitDeps, type SubmitResult } from './submit';
 
-// POST /api/applications as multipart/form-data: `data` = JSON of the form fields (incl. `site`),
-// `cv` = the CV file. Turnstile and rate limits are added in T7 and must run before
-// submitApplication (CLAUDE.md rule 5).
+// POST /api/applications as multipart/form-data: `data` = JSON of the form fields (incl. `site`
+// and `turnstileToken`), `cv` = the CV file.
+// Order (CLAUDE.md rule 5): IP limit -> local validation -> email limit -> Turnstile -> Twenty.
 
 const MAX_DATA_BYTES = 32 * 1024;
 const MAX_REQUEST_BYTES = MAX_CV_BYTES + MAX_DATA_BYTES + 64 * 1024; // CV + fields + multipart overhead
 
-const json = (status: number, body: unknown) =>
-  Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
+export type HandlerDeps = SubmitDeps & {
+  verifyHuman: VerifyHuman;
+  ipLimiter: RateLimiter;
+  emailLimiter: RateLimiter;
+  trustedIpHeader?: string;
+};
+
+const json = (status: number, body: unknown, headers: Record<string, string> = {}) =>
+  Response.json(body, { status, headers: { 'Cache-Control': 'no-store', ...headers } });
 
 function validationFailed(fields?: Partial<Record<string, string>>) {
   const { status, body } = toPublicError(new AppError('VALIDATION_FAILED'));
@@ -22,10 +31,26 @@ function validationFailed(fields?: Partial<Record<string, string>>) {
   return json(status, { error: { ...body.error, ...(fields && { fields }) } });
 }
 
-export function createApplicationsHandler(deps: SubmitDeps) {
+function rateLimited(retryAfterSeconds: number) {
+  const { status, body } = toPublicError(new AppError('RATE_LIMITED'));
+  return json(status, body, { 'Retry-After': String(retryAfterSeconds) });
+}
+
+export function createApplicationsHandler(deps: HandlerDeps) {
+  // Simultaneous requests with the same submissionKey share one result, so the
+  // duplicate check in submitApplication cannot be raced within this server.
+  const inFlight = new Map<string, Promise<SubmitResult>>();
+
   return async function handle(request: Request): Promise<Response> {
     const started = Date.now();
     try {
+      const ip = clientIp(request, deps.trustedIpHeader);
+      const ipCheck = deps.ipLimiter.hit(`ip:${ip ?? 'unknown'}`);
+      if (!ipCheck.allowed) {
+        deps.logger.warn('application.rate_limited', { code: 'RATE_LIMIT_IP' });
+        return rateLimited(ipCheck.retryAfterSeconds);
+      }
+
       if (!request.headers.get('content-type')?.toLowerCase().startsWith('multipart/form-data')) {
         throw new AppError('VALIDATION_FAILED');
       }
@@ -64,8 +89,28 @@ export function createApplicationsHandler(deps: SubmitDeps) {
         });
       }
 
-      const site = (body as { site?: unknown }).site;
-      const result = await submitApplication(parsed.data, typeof site === 'string' ? site : undefined, cvCheck.cv, deps);
+      const emailCheck = deps.emailLimiter.hit(`email:${parsed.data.email}`);
+      if (!emailCheck.allowed) {
+        deps.logger.warn('application.rate_limited', { code: 'RATE_LIMIT_EMAIL' });
+        return rateLimited(emailCheck.retryAfterSeconds);
+      }
+
+      const { site, turnstileToken } = body as { site?: unknown; turnstileToken?: unknown };
+      const human = await deps.verifyHuman(turnstileToken, ip);
+      if (!human.ok) {
+        deps.logger.warn('application.bot_check_failed', { code: human.code });
+        throw new AppError('BOT_CHECK_FAILED');
+      }
+
+      const key = parsed.data.submissionKey;
+      let pending = inFlight.get(key);
+      if (!pending) {
+        pending = submitApplication(parsed.data, typeof site === 'string' ? site : undefined, cvCheck.cv, deps);
+        inFlight.set(key, pending);
+        pending.finally(() => inFlight.delete(key)).catch(() => {});
+      }
+      const result = await pending;
+
       deps.logger.info('application.request_done', {
         applicationId: result.applicationId,
         status: result.duplicate ? 200 : 201,

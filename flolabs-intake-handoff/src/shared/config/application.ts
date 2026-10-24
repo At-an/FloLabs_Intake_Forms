@@ -7,6 +7,9 @@ export const APPLICATION_FORM = {
   consentVersion: 'application-consent-v1',
 } as const;
 
+/** Turnstile widget action per form; the server rejects tokens issued for another form. */
+export const TURNSTILE_ACTIONS = { application: 'application' } as const;
+
 export const HR_EMAIL = 'hr@flolabsinnovations.com';
 
 // Wording approved by FloLabs on 2026-10-24 (consentVersion application-consent-v1).

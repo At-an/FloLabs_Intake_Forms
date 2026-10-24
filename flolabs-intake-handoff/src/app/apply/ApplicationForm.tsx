@@ -1,12 +1,13 @@
 'use client';
 
 import { useId, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
-import { CONSENT_TEXT, HR_EMAIL, LIMITS } from '@/shared/config/application';
+import { CONSENT_TEXT, HR_EMAIL, LIMITS, TURNSTILE_ACTIONS } from '@/shared/config/application';
 import { PROGRAMS_BY_TRACK } from '@/shared/config/programs';
 import { SOURCES } from '@/shared/config/sources';
 import { applicationSchema, fieldErrors } from '@/shared/forms/application';
 import { CV_ACCEPT, cvProblem } from '@/shared/forms/cv';
 import styles from './apply.module.css';
+import { Turnstile } from './Turnstile';
 
 type Country = { value: string; label: string; callingCode: string };
 
@@ -68,10 +69,12 @@ const FIELD_ORDER = [
   'sourceDetail',
   'referralName',
   'safeSenderConfirmed',
+  'turnstile',
 ] as const;
 type FieldKey = (typeof FIELD_ORDER)[number];
 
 const GENERIC_ERROR = 'Something went wrong. Please try again later.';
+const TURNSTILE_MESSAGE = 'Please complete the security check below.';
 
 /** UUID v4 that also works on plain-http test addresses, where crypto.randomUUID is unavailable. */
 function newSubmissionKey(): string {
@@ -92,12 +95,22 @@ function toRequest(values: Values, submissionKey: string) {
   };
 }
 
-export function ApplicationForm({ siteKey, countries }: { siteKey?: string; countries: Country[] }) {
+export function ApplicationForm({
+  siteKey,
+  countries,
+  turnstileSiteKey,
+}: {
+  siteKey?: string;
+  countries: Country[];
+  turnstileSiteKey: string;
+}) {
   const idPrefix = useId();
   const id = (key: string) => `${idPrefix}-${key.replace('.', '-')}`;
 
   const [values, setValues] = useState<Values>(EMPTY);
   const [cvFile, setCvFile] = useState<File | null>(null);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const [turnstileReset, setTurnstileReset] = useState(0);
   const [touched, setTouched] = useState<ReadonlySet<string>>(new Set());
   const [submitted, setSubmitted] = useState(false);
   const [serverErrors, setServerErrors] = useState<Partial<Record<string, string>>>({});
@@ -111,8 +124,13 @@ export function ApplicationForm({ siteKey, countries }: { siteKey?: string; coun
   const errors = useMemo((): Partial<Record<string, string>> => {
     const result = applicationSchema.safeParse(toRequest(values, submissionKey));
     const cv = cvProblem(cvFile);
-    return { ...(result.success ? {} : fieldErrors(result.error)), ...(cv && { cv }), ...serverErrors };
-  }, [values, cvFile, submissionKey, serverErrors]);
+    return {
+      ...(result.success ? {} : fieldErrors(result.error)),
+      ...(cv && { cv }),
+      ...(!turnstileToken && { turnstile: TURNSTILE_MESSAGE }),
+      ...serverErrors,
+    };
+  }, [values, cvFile, turnstileToken, submissionKey, serverErrors]);
 
   const visibleErrors = FIELD_ORDER.filter((key) => errors[key] && (submitted || touched.has(key)));
   const errorFor = (key: FieldKey) => (visibleErrors.includes(key) ? errors[key] : undefined);
@@ -146,8 +164,12 @@ export function ApplicationForm({ siteKey, countries }: { siteKey?: string; coun
     const request = toRequest(values, submissionKey);
     const check = applicationSchema.safeParse(request);
     const cvError = cvProblem(cvFile);
-    if (!check.success || cvError || !cvFile) {
-      const found = { ...(check.success ? {} : fieldErrors(check.error)), ...(cvError && { cv: cvError }) };
+    if (!check.success || cvError || !cvFile || !turnstileToken) {
+      const found = {
+        ...(check.success ? {} : fieldErrors(check.error)),
+        ...(cvError && { cv: cvError }),
+        ...(!turnstileToken && { turnstile: TURNSTILE_MESSAGE }),
+      };
       requestAnimationFrame(() => focusFirstError(found));
       return;
     }
@@ -156,10 +178,12 @@ export function ApplicationForm({ siteKey, countries }: { siteKey?: string; coun
     try {
       // Multipart: the browser sets the Content-Type boundary itself.
       const body = new FormData();
-      body.set('data', JSON.stringify({ ...request, site: siteKey }));
+      body.set('data', JSON.stringify({ ...request, site: siteKey, turnstileToken }));
       body.set('cv', cvFile);
       const response = await fetch('/api/applications', { method: 'POST', body });
       const result = await response.json().catch(() => null);
+      // The token was spent on this attempt; get a fresh one for any retry.
+      setTurnstileReset((n) => n + 1);
       if (response.ok) {
         setStatus('done');
         requestAnimationFrame(() => doneRef.current?.focus());
@@ -173,6 +197,7 @@ export function ApplicationForm({ siteKey, countries }: { siteKey?: string; coun
       setFormError(typeof result?.error?.message === 'string' ? result.error.message : GENERIC_ERROR);
     } catch {
       setStatus('idle');
+      setTurnstileReset((n) => n + 1);
       setFormError('We could not reach the server. Check your connection and try again.');
     }
   }
@@ -485,6 +510,16 @@ export function ApplicationForm({ siteKey, countries }: { siteKey?: string; coun
           <span>{CONSENT_TEXT.sms} (optional)</span>
         </label>
       </fieldset>
+
+      <div className={styles.field} id={id('turnstile')} tabIndex={-1}>
+        <Turnstile
+          siteKey={turnstileSiteKey}
+          action={TURNSTILE_ACTIONS.application}
+          resetKey={turnstileReset}
+          onToken={setTurnstileToken}
+        />
+        {errorFor('turnstile') && <ErrorText id={`${id('turnstile')}-error`}>{errorFor('turnstile')}</ErrorText>}
+      </div>
 
       {formError && (
         <p className={styles.formError} role="alert">

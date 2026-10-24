@@ -2,11 +2,43 @@ import 'server-only';
 import { z } from 'zod';
 
 // Server environment, validated once. Later tasks add their variables here
-// (Turnstile in T7, R2 in T6c path B, LINK_TOKEN_SECRET in T10).
-const envSchema = z.object({
+// (LINK_TOKEN_SECRET in T10).
+
+/**
+ * Cloudflare's published Turnstile test keys (always pass). Used only outside production
+ * when no keys are configured, so local development works without real keys.
+ * https://developers.cloudflare.com/turnstile/troubleshooting/testing/
+ */
+export const TURNSTILE_TEST_KEYS = {
+  siteKey: '1x00000000000000000000AA',
+  secretKey: '1x0000000000000000000000000000000AA',
+} as const;
+
+const baseSchema = z.object({
+  NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   TWENTY_BASE_URL: z.url({ protocol: /^https$/ }).transform((url) => url.replace(/\/+$/, '')),
   TWENTY_API_KEY: z.string().min(20),
+  TURNSTILE_SITE_KEY: z.string().min(10).optional(),
+  TURNSTILE_SECRET_KEY: z.string().min(10).optional(),
+  // Header carrying the real client IP when the app runs behind a proxy (T7 rate limits).
+  // Unset: no header is trusted (local development: all requests share one IP bucket).
+  TRUSTED_IP_HEADER: z.enum(['cf-connecting-ip', 'x-forwarded-for', 'x-real-ip']).optional(),
 });
+
+const envSchema = baseSchema
+  .refine((env) => env.NODE_ENV !== 'production' || env.TURNSTILE_SITE_KEY, {
+    path: ['TURNSTILE_SITE_KEY'],
+    message: 'required in production',
+  })
+  .refine((env) => env.NODE_ENV !== 'production' || env.TURNSTILE_SECRET_KEY, {
+    path: ['TURNSTILE_SECRET_KEY'],
+    message: 'required in production',
+  })
+  .transform(({ TURNSTILE_SITE_KEY, TURNSTILE_SECRET_KEY, ...env }) => ({
+    ...env,
+    TURNSTILE_SITE_KEY: TURNSTILE_SITE_KEY ?? TURNSTILE_TEST_KEYS.siteKey,
+    TURNSTILE_SECRET_KEY: TURNSTILE_SECRET_KEY ?? TURNSTILE_TEST_KEYS.secretKey,
+  }));
 
 export type Env = z.infer<typeof envSchema>;
 

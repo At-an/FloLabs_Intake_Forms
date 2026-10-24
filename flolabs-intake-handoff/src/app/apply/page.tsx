@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { getEnv } from '@/server/env';
 import { COUNTRIES } from '@/shared/config/countries';
 import { ApplicationForm } from './ApplicationForm';
 import styles from './apply.module.css';
@@ -23,7 +24,7 @@ export default async function ApplyPage({ searchParams }: Props) {
           <span className={styles.srOnly}>with an asterisk</span> are required. It takes about 5 minutes.
         </p>
       </header>
-      <ApplicationForm siteKey={siteKey} countries={countries} />
+      <ApplicationForm siteKey={siteKey} countries={countries} turnstileSiteKey={getEnv().TURNSTILE_SITE_KEY} />
     </main>
   );
 }
