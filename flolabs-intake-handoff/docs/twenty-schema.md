@@ -237,7 +237,7 @@ The API supports server-side file upload through GraphQL `/metadata`:
 
 `name` TEXT ("First Last - Subject"), `subject` TEXT, `message` TEXT, `status` SELECT (`NEW` default, `IN_PROGRESS`, `CLOSED`), `submittedAt` DATE_TIME, `submissionKey` TEXT, `person`/`personId` RELATION many-to-one -> `person.inquiries`, `site`/`siteId` RELATION many-to-one -> `site.inquiries`, `siteStatus` SELECT (`KNOWN`/`MISSING`/`UNKNOWN`/`INACTIVE`) and `siteKeyReceived` TEXT (added in T2d, `scripts/t2d-inquiry-site-status.mjs`, snapshot `twenty-schema-2026-10-24-t2d.json`). Object id `4c3e95a3-0373-4f1f-91b1-55e7845cf78c`.
 
-**Permission gap (2026-10-24):** the API key's role cannot read or write Inquiry records (FORBIDDEN). An admin must allow it in Twenty Settings -> Roles -> (the key's role) -> object permissions.
+**Permissions (resolved 2026-10-24):** the API key's role first got FORBIDDEN on Inquiry (new objects are not covered by per-object role rules); the team lead granted access and the live writes passed.
 
 ## Form Submission (`formSubmission` / `formSubmissions`), created 2026-10-24
 
@@ -247,7 +247,7 @@ The API supports server-side file upload through GraphQL `/metadata`:
 
 `name` TEXT labelled **"Full Name"** (the reference's full name), `title` TEXT, `organization` TEXT, `relationship` TEXT, `email` EMAILS, `phone` PHONES, `knownDuration` SELECT (`MONTHS_0_TO_6`, `MONTHS_6_TO_12`, `YEARS_1_TO_2`, `YEARS_2_TO_3`), `application`/`applicationId` RELATION many-to-one -> `application.references`.
 
-**Permission gap (2026-10-24):** like Inquiry, the API key's role cannot read or write Form Submission and Reference records until an admin allows it.
+**Permissions (resolved 2026-10-24):** read/create granted like Inquiry. Verified live: `answers` RAW_JSON and `answersSummary` sent as `{ markdown }` are stored as sent; Reference `phone` accepts empty parts when no phone is given.
 
 ## Person consent fields, created in T2b 2026-10-24
 

@@ -15,6 +15,8 @@ import { createLinkFormHandler } from './submit-link-form';
 // It uses the test Person and the first test Application (kept until T16), so it uses up that
 // Application's Form 1-3 links. Turnstile is not called (the handlers get a pass-through check);
 // everything after it is the real code path. Records carry the approved names, never placeholders.
+// One-shot per Application: a second run fails on the used links. Run one form with
+//   npm run test:live-write -- -t MASTERCLASS
 
 const live = Boolean(process.env.LIVE_WRITE && process.env.TWENTY_BASE_URL && process.env.TWENTY_API_KEY && process.env.LINK_TOKEN_SECRET);
 
@@ -77,7 +79,8 @@ async function readFormSubmission(id: string) {
   return (await res.json()).data.formSubmissions.edges[0]?.node;
 }
 
-describe.skipIf(!live)('Contact Us and Forms 1-3 (live, WRITES records)', () => {
+// Each form makes several Twenty round trips; 5 s (the default) is too short over the network.
+describe.skipIf(!live)('Contact Us and Forms 1-3 (live, WRITES records)', { timeout: 30_000 }, () => {
   let twenty: TwentyClient;
   beforeAll(() => {
     twenty = createTwentyClient({ baseUrl: process.env.TWENTY_BASE_URL!, apiKey: process.env.TWENTY_API_KEY! });

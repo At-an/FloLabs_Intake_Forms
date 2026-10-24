@@ -116,10 +116,10 @@ POC scope: **the Application form first.** Forms 1-3, Contact Us and Newsletter 
 5. T5 `POST /api/applications` and T6 `/apply` form: **done** (2026-10-24). Twenty formats confirmed by a test write: `addressCountry` = English country name; phone = national number + ISO country code + calling code.
 6. T6c CV upload (path A): **done** (2026-10-24). T6c-0 (Twenty storage on R2) is still for the team lead; the app needs no change for it. T6d is not needed.
 7. T7 Turnstile + rate limits: **done** (2026-10-24). Local testing uses `npm run dev` (Turnstile test keys); `next start` needs real keys in `.env.local`.
-8. T2b (Inquiry + Person consent fields), T6b embeds, T8 Newsletter: **done** (2026-10-24). T9 Contact Us: code done; live run waits for the admin to give the API key's role access to the Inquiry object.
+8. T2b (Inquiry + Person consent fields), T6b embeds, T8 Newsletter: **done** (2026-10-24). T9 Contact Us: **done**, live run passed 2026-10-24.
 9. Test page for embeds: `npm run dev`, then `http://localhost:3000/dev/embed-test`.
-10. T2b complete (Form Submission, Reference), T10 signed links and T11 form engine: **done** (2026-10-24). Waiting for the admin: the API key's role must be allowed to read/create Inquiries, Form Submissions and References.
-11. T12-T14 Forms 1-3 (configs, `POST /api/forms/<form>`, UI with browser drafts, all three multi-step with a shared header on every step, Form 3 References): **code done** (2026-10-24), unit-tested. Live check `npm run test:live-write` (writes records) waits for the same admin permission. Preview: `/dev/link-form`.
+10. T2b complete (Form Submission, Reference), T10 signed links and T11 form engine: **done** (2026-10-24). The API key's role can read/create Inquiries, Form Submissions and References (granted 2026-10-24).
+11. T12-T14 Forms 1-3 (configs, `POST /api/forms/<form>`, UI with browser drafts, all three multi-step with a shared header on every step, Form 3 References): **done** (2026-10-24), unit-tested; live check `npm run test:live-write` passed (one-shot per test Application). Preview: `/dev/link-form`.
 12. Next: Checkpoint D (one cross-track applicant through Application -> Forms 1-3, once permissions are granted), then T15 security pass, T16 docs.
 
 Recommended skills per step: source-driven-development (T1), api-and-interface-design (T5), security-and-hardening (T5, T7, T15), incremental-implementation, frontend-ui-engineering (T6), test-driven-development, flolabs-code-reviewer before merge, documentation-and-adrs (T16).
