@@ -120,7 +120,8 @@ POC scope: **the Application form first.** Forms 1-3, Contact Us and Newsletter 
 9. Test page for embeds: `npm run dev`, then `http://localhost:3000/dev/embed-test`.
 10. T2b complete (Form Submission, Reference), T10 signed links and T11 form engine: **done** (2026-10-24). The API key's role can read/create Inquiries, Form Submissions and References (granted 2026-10-24).
 11. T12-T14 Forms 1-3 (configs, `POST /api/forms/<form>`, UI with browser drafts, all three multi-step with a shared header on every step, Form 3 References): **done** (2026-10-24), unit-tested; live check `npm run test:live-write` passed (one-shot per test Application). Preview: `/dev/link-form`.
-12. Next: Checkpoint D (one cross-track applicant through Application -> Forms 1-3, once permissions are granted), then T15 security pass, T16 docs.
+12. T15 security pass: **done** (2026-10-24, see the plan). Production launch steps: `docs/production-launch.md` (run one app instance; `TRUSTED_IP_HEADER` required in production).
+13. Next: T16 documentation, two documents: (a) an HR handover guide (process, forms, fields, how to run it); (b) a full account of what was implemented in this project. Out of scope (decided 2026-10-24): enforcing the Form 1-2-3 order and Amazon SES; both come later with automation.
 
 Recommended skills per step: source-driven-development (T1), api-and-interface-design (T5), security-and-hardening (T5, T7, T15), incremental-implementation, frontend-ui-engineering (T6), test-driven-development, flolabs-code-reviewer before merge, documentation-and-adrs (T16).
 
