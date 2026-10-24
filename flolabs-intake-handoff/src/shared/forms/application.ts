@@ -11,25 +11,25 @@ import { SOURCES } from '../config/sources';
 // separately by signature and size (T6c); Turnstile and the site key are checked by the route.
 
 const requiredText = (max: number, message: string) =>
-  z.string().trim().min(1, message).max(max, `Use ${max} characters or fewer.`);
+  z.string(message).trim().min(1, message).max(max, `Use ${max} characters or fewer.`);
 
 const optionalText = (max: number) =>
   z
-    .string()
+    .string('Enter text here, or leave it empty.')
     .trim()
     .max(max, `Use ${max} characters or fewer.`)
     .optional()
     .transform((value) => value || undefined);
 
 const countryCode = (message: string) =>
-  z.string().refine(isCountryCode, message).transform((value) => value as CountryCode);
+  z.string(message).refine(isCountryCode, message).transform((value) => value as CountryCode);
 
 // Checked on its own (not in an object-level refinement) so its error shows even while
 // other fields are still empty: Zod skips object refinements after type errors elsewhere.
 const phoneField = z
   .object({
     country: countryCode('Choose the country code for your phone number.'),
-    number: z.string().trim().min(1, 'Enter your phone number.').max(30, 'This phone number is too long.'),
+    number: z.string('Enter your phone number.').trim().min(1, 'Enter your phone number.').max(30, 'This phone number is too long.'),
   })
   .transform(({ country, number }, ctx) => {
     const phone = parsePhoneNumberFromString(number, country);
@@ -44,6 +44,8 @@ const phoneField = z
       nationalNumber: phone.nationalNumber,
     };
   });
+// A missing phone object gets the same message as an empty number.
+const phoneInput = z.looseObject({}, 'Enter your phone number.').pipe(phoneField);
 
 const linkedinField = optionalText(LIMITS.linkedinUrl).transform((value, ctx) => {
   if (!value) return undefined;
@@ -76,19 +78,19 @@ function normalizeLinkedin(raw: string): string | null {
 
 export const applicationSchema = z
   .object({
-    submissionKey: z.uuid(),
+    submissionKey: z.uuid('This form could not be sent. Please reload the page and try again.'),
 
     firstName: requiredText(LIMITS.name, 'Enter your first name.'),
     lastName: requiredText(LIMITS.name, 'Enter your last name.'),
     email: z
-      .string()
+      .string('Enter your email address.')
       .trim()
       .toLowerCase()
       .min(1, 'Enter your email address.')
       .max(LIMITS.email, 'This email address is too long.')
       .pipe(z.email('Enter a valid email address, like name@example.com.')),
 
-    phone: phoneField,
+    phone: phoneInput,
 
     country: countryCode('Choose your country or region.'),
     state: optionalText(LIMITS.state),
@@ -97,7 +99,7 @@ export const applicationSchema = z
     education: requiredText(LIMITS.education, 'Enter your education or major.'),
 
     programs: z
-      .array(z.enum(valuesOf(PROGRAMS), 'Choose a program from the list.'))
+      .array(z.enum(valuesOf(PROGRAMS), 'Choose a program from the list.'), 'Choose at least one program.')
       .min(1, 'Choose at least one program.')
       .refine((list) => new Set(list).size === list.length, 'Each program can be chosen only once.'),
 
@@ -106,8 +108,8 @@ export const applicationSchema = z
     referralName: optionalText(LIMITS.referralName),
 
     safeSenderConfirmed: z.literal(true, `Please confirm you have added ${HR_EMAIL} to your contacts.`),
-    marketingOptIn: z.boolean().default(false),
-    smsOptIn: z.boolean().default(false),
+    marketingOptIn: z.boolean('Choose yes or no.').default(false),
+    smsOptIn: z.boolean('Choose yes or no.').default(false),
   })
   .refine((data) => data.source !== 'OTHER' || Boolean(data.sourceDetail), {
     path: ['sourceDetail'],

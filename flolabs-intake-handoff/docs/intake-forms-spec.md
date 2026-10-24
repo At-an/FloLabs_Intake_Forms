@@ -54,7 +54,7 @@ Forms 1-3 also send `token` (signed link).
 | Marketing opt-in | checkbox | BOOLEAN -> Application.communicationConsent (+ communicationConsentAt, consentVersion) | N | Unchecked by default (D5) |
 | SMS/phone opt-in | checkbox | BOOLEAN -> Application.phoneMessagingConsent (+ phoneMessagingConsentAt, consentVersion) | N | Unchecked by default (D5) |
 | (system) Submission key | hidden | TEXT -> Application.submissionKey | - | Retry protection (D8) |
-| site key | `?site=` in the link | RELATION -> Application.site | Y | Allow-listed active Site; resolved server-side; missing/unknown -> flolabs_international (approved) |
+| site key | `?site=` in the link | RELATION -> Application.site | Y | Resolved server-side: active -> Site + `siteStatus` KNOWN; missing -> no Site, MISSING; unknown -> no Site, UNKNOWN; inactive -> that Site, INACTIVE; raw key -> `siteKeyReceived` (approved 2026-10-24) |
 | (system) Submitted At | - | DATE_TIME | - | Server time |
 | (system) Lifecycle Stage / Lead Status | - | SELECT | - | Test values for POC |
 | (system) Source Form ID / Form Version | - | TEXT | - | |

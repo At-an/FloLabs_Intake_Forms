@@ -109,6 +109,23 @@ describe('applicationSchema: required fields', () => {
   });
 });
 
+describe('applicationSchema: missing fields (API callers)', () => {
+  it('gives every missing field a friendly message, never Zod wording', () => {
+    const result = applicationSchema.safeParse({});
+    expect(result.success).toBe(false);
+    const errors = result.success ? {} : fieldErrors(result.error);
+    expect(errors).toMatchObject({
+      firstName: 'Enter your first name.',
+      email: 'Enter your email address.',
+      phone: 'Enter your phone number.',
+      country: 'Choose your country or region.',
+      programs: 'Choose at least one program.',
+      source: 'Tell us how you heard about us.',
+    });
+    expect(JSON.stringify(errors)).not.toMatch(/Invalid input|expected|received/);
+  });
+});
+
 describe('applicationSchema: conditional rules', () => {
   it('requires sourceDetail when the source is Other', () => {
     expect(errorsOf({ source: 'OTHER' }).sourceDetail).toBe('Tell us where you heard about us.');

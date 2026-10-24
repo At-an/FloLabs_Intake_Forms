@@ -1,7 +1,7 @@
 # Twenty schema map (T1)
 
 Verified against the live instance on 2026-10-23 (`https://157-230-82-204.sslip.io`); updated after T2a on 2026-10-24.
-Machine-readable snapshots: `docs/snapshots/twenty-schema-2026-10-23.json` (T1) and `docs/snapshots/twenty-schema-2026-10-24-t2a.json` (current; field ids, options, relations).
+Machine-readable snapshots: `docs/snapshots/twenty-schema-2026-10-23.json` (T1), `docs/snapshots/twenty-schema-2026-10-24-t2a.json` (T2a) and `docs/snapshots/twenty-schema-2026-10-24-t2c.json` (current, after T2c site-status fields; field ids, options, relations).
 Re-generate with `node --env-file=.env.local scripts/t1-schema-probe.mjs <out.json>` from `flolabs-intake-handoff/`.
 
 Live data at verification time: 5 People, 1 Application, 1 Site, 0 Attachments.
@@ -31,6 +31,8 @@ erDiagram
         MULTI_SELECT positionAppliedFor "Programs Applied For, 40 options"
         SELECT source "26 options"
         TEXT submissionKey
+        SELECT siteStatus
+        TEXT siteKeyReceived
         TEXT sourceDetail
         TEXT referralName
         BOOLEAN safeSenderConfirmed
@@ -89,7 +91,7 @@ Values are API values, never UI labels.
 | FILES | array of `{ fileId, label }` (response adds `extension`, `url`) |
 | RELATION (many-to-one) | set the join column: `personId`, `siteId` |
 
-To confirm with a test write in T5: exact `addressCountry` format (country name vs ISO code) and `primaryPhoneCountryCode` (ISO "US" vs calling code).
+Confirmed by a test write in T5 (2026-10-24): `addressCountry` = English country name ("United States"); `primaryPhoneNumber` = national number ("5125550142"), `primaryPhoneCountryCode` = ISO code ("US"), `primaryPhoneCallingCode` = "+1".
 
 ## Person (`person` / `people`)
 
@@ -112,6 +114,8 @@ To confirm with a test write in T5: exact `addressCountry` format (country name 
 | (label identifier) | `name` | TEXT | Display name in the UI. Value to be decided in T5 |
 | Programs Applied For | `positionAppliedFor` | MULTI_SELECT | label "Programs Applied For" (T2a), 40 options, see below |
 | How did you hear about us? | `source` | SELECT | single value, 26 options (T2a), see below |
+| Site status | `siteStatus` | SELECT | added in T2c: `KNOWN`, `MISSING`, `UNKNOWN`, `INACTIVE`; field id `e1f9fe42-a6d7-4077-ae4b-7f41ed01193f` |
+| Site key received | `siteKeyReceived` | TEXT | added in T2c: `?site=` value as received (max 64); field id `af0dfd1a-a93b-47cb-8b8a-0a1882fceadb` |
 | Submission key | `submissionKey` | TEXT | added in T2a, field id `e1fd1843-ca3c-4b38-8c79-c46b34483170`; retry protection (spec D8) |
 | Source Detail | `sourceDetail` | TEXT | exists |
 | Referral Name | `referralName` | TEXT | exists |

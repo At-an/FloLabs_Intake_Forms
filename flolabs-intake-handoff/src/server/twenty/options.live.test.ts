@@ -31,6 +31,11 @@ describe.skipIf(!live)('form config vs live Twenty options', () => {
     expect(byValue(PROGRAMS.map(({ value, label }) => ({ value, label })))).toEqual(byValue(options));
   });
 
+  it('Application.siteStatus has exactly the values the server writes', async () => {
+    const options = await liveOptions('siteStatus');
+    expect(options.map((o) => o.value)).toEqual(['KNOWN', 'MISSING', 'UNKNOWN', 'INACTIVE']);
+  });
+
   it('every source value exists in Application.source, with the same label and order', async () => {
     const options = await liveOptions('source');
     expect(SOURCES.map(({ value, label }) => ({ value, label }))).toEqual(options);

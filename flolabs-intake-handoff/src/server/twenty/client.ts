@@ -30,9 +30,9 @@ const PERSON_FIELDS = `
   id
   name { firstName lastName }
   emails { primaryEmail additionalEmails }
-  phones { primaryPhoneNumber primaryPhoneCountryCode primaryPhoneCallingCode }
-  location { addressCountry addressState addressCity }
-  linkedinLink { primaryLinkUrl primaryLinkLabel }
+  phones { primaryPhoneNumber primaryPhoneCountryCode primaryPhoneCallingCode additionalPhones }
+  location { addressStreet1 addressStreet2 addressCity addressState addressPostcode addressCountry addressLat addressLng }
+  linkedinLink { primaryLinkUrl primaryLinkLabel secondaryLinks }
   education
 `;
 

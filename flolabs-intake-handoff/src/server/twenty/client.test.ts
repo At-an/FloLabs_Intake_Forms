@@ -54,6 +54,7 @@ describe('Twenty client', () => {
     const input: ApplicationInput = {
       personId: ID,
       siteId: ID,
+      siteStatus: 'KNOWN',
       submissionKey: ID,
       positionAppliedFor: ['UI_UX_DESIGN_INTERN'],
       source: 'REFERRAL',

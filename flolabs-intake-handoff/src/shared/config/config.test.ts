@@ -7,7 +7,7 @@ import { SOURCES } from './sources';
 
 // Offline check against the latest schema snapshot; the live check is options.live.test.ts.
 const snapshot = JSON.parse(
-  readFileSync(new URL('../../../docs/snapshots/twenty-schema-2026-10-24-t2a.json', import.meta.url), 'utf8'),
+  readFileSync(new URL('../../../docs/snapshots/twenty-schema-2026-10-24-t2c.json', import.meta.url), 'utf8'),
 ) as { objects: { application: { fields: { name: string; options?: { value: string; label: string }[] }[] } } };
 const snapshotOptions = (field: string) =>
   snapshot.objects.application.fields.find((f) => f.name === field)!.options!.map(({ value, label }) => ({ value, label }));

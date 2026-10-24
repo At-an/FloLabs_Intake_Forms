@@ -5,7 +5,6 @@ export const APPLICATION_FORM = {
   sourceFormId: 'application',
   formVersion: '1',
   consentVersion: 'application-consent-v1',
-  defaultSiteKey: 'flolabs_international',
 } as const;
 
 export const HR_EMAIL = 'hr@flolabsinnovations.com';
