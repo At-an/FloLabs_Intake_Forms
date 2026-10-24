@@ -98,7 +98,7 @@ Checkpoint B: run the briefing's POC acceptance test end to end (including CV in
 **T8 Newsletter widget.** S. **Done 2026-10-24** (`POST /api/newsletter`): verified live, consent stored on the existing test Person, repeat sign-up was a no-op. Single opt-in until SES; consent wording is a draft for review.
 - AC: find-or-create Person by email (fill-empty); marketing consent, timestamp, consentVersion and site key stored in the Person consent fields; re-subscribing is idempotent. Confirmation email waits for SES.
 
-**T9 Contact Us -> Inquiry.** S. **Code done 2026-10-24** (`POST /api/inquiries`, unit-tested). **Live run blocked**: the API key's role has no permission on the new Inquiry object (Twenty returns FORBIDDEN); an admin must grant it in Settings -> Roles.
+**T9 Contact Us -> Inquiry.** S. **Code done 2026-10-24** (`POST /api/inquiries`, unit-tested). **Live run blocked**: the API key's role has no permission on the new Inquiry object (Twenty returns FORBIDDEN); an admin must grant it in Settings -> Roles. Unknown/inactive websites are recorded and marked (`siteStatus`, `siteKeyReceived` added in T2d).
 - AC: Person (fill-empty) + Inquiry with Site; message length limits enforced.
 
 Checkpoint C.
