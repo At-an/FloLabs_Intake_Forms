@@ -21,6 +21,8 @@ const baseSchema = z.object({
   TURNSTILE_SECRET_KEY: z.string().min(10).optional(),
   // Header carrying the real client IP when the app runs behind a proxy (T7 rate limits).
   // Unset: no header is trusted (local development: all requests share one IP bucket).
+  // Required in production: without it every visitor shares one bucket, so the per-IP limit
+  // (10 / 10 min) would apply to the whole site (T15).
   TRUSTED_IP_HEADER: z.enum(['cf-connecting-ip', 'x-forwarded-for', 'x-real-ip']).optional(),
   // Signs Form 1-3 links (T10). At least 32 characters; rotating it revokes all unused links.
   LINK_TOKEN_SECRET: z.string().min(32).optional(),
@@ -37,6 +39,10 @@ const envSchema = baseSchema
   })
   .refine((env) => env.NODE_ENV !== 'production' || env.LINK_TOKEN_SECRET, {
     path: ['LINK_TOKEN_SECRET'],
+    message: 'required in production',
+  })
+  .refine((env) => env.NODE_ENV !== 'production' || env.TRUSTED_IP_HEADER, {
+    path: ['TRUSTED_IP_HEADER'],
     message: 'required in production',
   })
   .transform(({ TURNSTILE_SITE_KEY, TURNSTILE_SECRET_KEY, ...env }) => ({

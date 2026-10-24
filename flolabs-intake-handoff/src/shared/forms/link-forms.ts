@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { LINK_FORM_CONFIGS, KNOWN_DURATIONS } from '../config/link-forms';
 import { labelOf, valuesOf } from '../config/options';
-import { answersSchema, buildForm, renderSummary, type BuiltForm, type FormType } from './engine';
+import { answersSchema, buildForm, escapeMarkdown, renderSummary, type BuiltForm, type FormType } from './engine';
 import { optionalPhoneInput } from './phone';
 
 // The one Zod schema per link form (Forms 1-3, CLAUDE.md rule 4), shared by the browser and
@@ -87,11 +87,11 @@ export function renderLinkFormSummary(form: BuiltForm, data: LinkFormData): stri
     lines.push(
       `### Reference ${index + 1}`,
       '',
-      `- **Full name:** ${ref.fullName}`,
-      `- **Position / Title:** ${ref.title}`,
-      `- **Organization / Institution:** ${ref.organization}`,
-      `- **Relationship to you:** ${ref.relationship}`,
-      `- **Email:** ${ref.email}`,
+      `- **Full name:** ${escapeMarkdown(ref.fullName)}`,
+      `- **Position / Title:** ${escapeMarkdown(ref.title)}`,
+      `- **Organization / Institution:** ${escapeMarkdown(ref.organization)}`,
+      `- **Relationship to you:** ${escapeMarkdown(ref.relationship)}`,
+      `- **Email:** ${escapeMarkdown(ref.email)}`,
       `- **Phone:** ${ref.phone ? ref.phone.e164 : '_Not given_'}`,
       `- **Known for:** ${labelOf(KNOWN_DURATIONS, ref.knownDuration)}`,
       '',

@@ -132,6 +132,14 @@ Checkpoint D: one applicant (cross-track) goes Application -> Form 1 -> Form 2 -
 **T15 Security pass.** M
 - Review all five risk mitigations end to end; CORS locked; security headers; dependency audit; R2 bucket policy check.
 - Skill: security-and-hardening, then flolabs-code-reviewer.
+- **Done 2026-10-24.** Checked and found sound: input validated by one Zod schema per form; Turnstile + limits before any Twenty call; generic errors; logs IDs/codes only; GraphQL variables only (no injection); CV by file signature + 5 MB; upload host allow-list (no SSRF); link tokens HMAC with constant-time compare; no CORS headers (other sites cannot read API responses); no raw HTML/eval; `/dev/*` pages 404 in production; `npm audit` 0 vulnerabilities, registry signatures verified; no secrets in the tree or git history.
+- Fixed:
+  1. Request bodies are read with a hard cap (`readBodyCapped`): before, a body without (or with a false) Content-Length was buffered whole.
+  2. Applicant text in `answersSummary` is markdown-escaped and links are normalised, so answers cannot add links, tracking images or HTML to what HR opens in Twenty.
+  3. Security headers: Content-Security-Policy (self + Turnstile only, no plugins, base-uri/form-action locked), HSTS (production), Permissions-Policy; verified in a production build with a browser (no violations, Turnstile works).
+  4. `TRUSTED_IP_HEADER` required in production: without it all visitors shared one rate-limit bucket (10 / 10 min for the whole site).
+  5. `.gitignore` ignores every `.env*` file except `.env.example`.
+- Known limitations (accepted for launch, see `docs/production-launch.md`): CSP allows inline scripts (Next.js bootstrap; a nonce would remove it); rate limits and the per-link queue are in memory, so run **one** app instance; R2 bucket policy is the team lead's (checked indirectly: unsigned CV URL returns 403, T6c); data retention/deletion policy to be set by FloLabs (T16).
 
 **T16 Documentation.** S
 - AC (2026-10-24): document as a known shortcoming that the Newsletter is **single opt-in** (consent recorded at sign-up, no confirmation email), and the required future step: double opt-in with Amazon SES (confirmation email with a signed link; keep consent pending until the link is clicked, then set `communicationConsent` and its timestamp; add a status field for Pending/Confirmed/Unsubscribed and an unsubscribe link).

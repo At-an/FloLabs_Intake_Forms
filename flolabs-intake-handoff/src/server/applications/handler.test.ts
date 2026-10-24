@@ -86,6 +86,29 @@ describe('POST /api/applications', () => {
     expect([fake.calls.uploadFile, fake.calls.createPerson, fake.calls.createApplication]).toEqual([[], [], []]);
   });
 
+  it('stops reading a huge body sent without Content-Length (chunked), before any Twenty call', async () => {
+    const { handle, fake } = setup();
+    let sent = 0;
+    const chunk = new Uint8Array(1024 * 1024);
+    const endless = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        sent += chunk.byteLength;
+        controller.enqueue(chunk); // never closes: only a capped reader can finish
+      },
+    });
+    const req = new Request('http://localhost/api/applications', {
+      method: 'POST',
+      headers: { 'Content-Type': 'multipart/form-data; boundary=x' },
+      body: endless,
+      duplex: 'half',
+    } as RequestInit);
+    const res = await handle(req);
+    expect(res.status).toBe(400);
+    expect((await res.json()).error.fields).toEqual({ cv: CV_MESSAGES.tooLarge });
+    expect(sent).toBeLessThan(MAX_CV_BYTES + 4 * 1024 * 1024);
+    expect(fake.calls.order).toEqual([]);
+  });
+
   it('rejects a CV over 5 MB', async () => {
     const big = new Uint8Array(MAX_CV_BYTES + 10);
     big.set(PDF_BYTES);

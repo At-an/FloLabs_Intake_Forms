@@ -1,6 +1,6 @@
-# Ignore local environment variables.
-.env.local
-.env*.local
+# Ignore every environment file (local, production, ...); only the placeholder template is committed.
+.env*
+!.env.example
 
 # Dependencies and build output
 node_modules/

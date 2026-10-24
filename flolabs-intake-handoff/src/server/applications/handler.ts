@@ -2,6 +2,7 @@ import 'server-only';
 import { applicationSchema, fieldErrors } from '@/shared/forms/application';
 import { CV_MESSAGES, MAX_CV_BYTES } from '@/shared/forms/cv';
 import { AppError, errorCodeOf, toPublicError } from '../errors';
+import { readBodyCapped } from '../public-post';
 import { clientIp, type RateLimiter } from '../rate-limit';
 import type { VerifyHuman } from '../turnstile';
 import { TwentyError } from '../twenty/client';
@@ -54,12 +55,19 @@ export function createApplicationsHandler(deps: HandlerDeps) {
       if (!request.headers.get('content-type')?.toLowerCase().startsWith('multipart/form-data')) {
         throw new AppError('VALIDATION_FAILED');
       }
-      const declaredLength = Number(request.headers.get('content-length') ?? '0');
-      if (declaredLength > MAX_REQUEST_BYTES) return validationFailed({ cv: CV_MESSAGES.tooLarge });
+      // Capped read: a missing or false Content-Length cannot make the server buffer more.
+      let bytes: Uint8Array;
+      try {
+        bytes = await readBodyCapped(request, MAX_REQUEST_BYTES);
+      } catch (error) {
+        // Over the limit: tell the applicant; a broken upload stream gets the generic message.
+        if (error instanceof AppError) return validationFailed({ cv: CV_MESSAGES.tooLarge });
+        throw new AppError('VALIDATION_FAILED');
+      }
 
       let form: FormData;
       try {
-        form = await request.formData();
+        form = await new Response(bytes as BodyInit, { headers: { 'content-type': request.headers.get('content-type')! } }).formData();
       } catch {
         throw new AppError('VALIDATION_FAILED');
       }

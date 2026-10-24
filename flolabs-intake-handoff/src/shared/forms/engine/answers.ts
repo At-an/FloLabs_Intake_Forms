@@ -79,6 +79,20 @@ export function answersSchema(form: BuiltForm) {
   });
 }
 
+/**
+ * Applicant text as literal markdown text: markdown/HTML syntax is escaped, so an answer cannot
+ * add links, images (which would load from another server when HR opens the record) or markup
+ * to answersSummary. Line breaks are kept as markdown hard breaks.
+ */
+export function escapeMarkdown(text: string): string {
+  return text
+    // Links/images need [ ] (and ! for images); HTML and autolinks need < >; the rest is emphasis,
+    // code, headings, tables and strike-through. Ordinary punctuation (. - ( )) stays readable.
+    .replace(/[\\`*_[\]<>#!|~]/g, '\\$&')
+    .split(/\r?\n/)
+    .join('  \n');
+}
+
 function formatAnswer(q: AnswerQuestion, value: unknown): string {
   switch (q.kind) {
     case 'yesno':
@@ -89,12 +103,13 @@ function formatAnswer(q: AnswerQuestion, value: unknown): string {
     case 'multiselect':
       return (value as string[]).map((v) => `- ${labelOf(q.options, v)}`).join('\n');
     case 'links':
-      return (value as string[]).map((url) => `- <${url}>`).join('\n');
+      // The normalised href percent-encodes < > and spaces, so a link cannot break out of <...>.
+      return (value as string[]).map((url) => `- <${new URL(url).href}>`).join('\n');
     case 'number':
       return String(value);
     case 'text':
     case 'textarea':
-      return String(value);
+      return escapeMarkdown(String(value));
   }
 }
 

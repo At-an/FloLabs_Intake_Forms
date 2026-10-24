@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { answersSchema, buildForm, prefillFor, renderSummary, typedFieldValues, validateFormConfig, type FormConfig } from '.';
+import { answersSchema, buildForm, escapeMarkdown, prefillFor, renderSummary, typedFieldValues, validateFormConfig, type FormConfig } from '.';
 import { fieldErrors } from '../field-errors';
 
 // A small config shaped like Form 1 (real question texts arrive in T12).
@@ -238,7 +238,7 @@ describe('summary and typed fields', () => {
         '### UI/UX Design Intern',
         '',
         '**Portfolio link**',
-        '- <https://janedoe.design>',
+        '- <https://janedoe.design/>',
         '',
         '## Closing',
         '',
@@ -270,5 +270,30 @@ describe('prefillFor (D4)', () => {
         person: { name: { firstName: 'Atankeu', lastName: 'Natanahel' }, emails: { primaryEmail: 'zoom+t5test@flomadlabs.com' } },
       }),
     ).toEqual({ fullName: 'Atankeu Natanahel', email: 'zoom+t5test@flomadlabs.com', programs: ['UI/UX Design Intern', 'Finance Intern'] });
+  });
+});
+
+describe('escapeMarkdown (applicant text in answersSummary)', () => {
+  it('neutralises links, images, HTML and markup but keeps ordinary punctuation', () => {
+    expect(escapeMarkdown('[click](https://evil.example)')).toBe('\\[click\\](https://evil.example)');
+    expect(escapeMarkdown('![x](https://tracker.example/p.png)')).toBe('\\!\\[x\\](https://tracker.example/p.png)');
+    expect(escapeMarkdown('<img src=x onerror=alert(1)>')).toBe('\\<img src=x onerror=alert(1)\\>');
+    expect(escapeMarkdown('# Title *bold* `code`')).toBe('\\# Title \\*bold\\* \\`code\\`');
+    expect(escapeMarkdown('3-6 months (maybe).')).toBe('3-6 months (maybe).');
+  });
+
+  it('keeps line breaks as markdown hard breaks', () => {
+    expect(escapeMarkdown('line one\r\nline two')).toBe('line one  \nline two');
+  });
+
+  it('writes links in normalised form, so they cannot break out of <...>', () => {
+    const form = buildForm(config, ['AI_AGI_INTERN']);
+    const summary = renderSummary(form, { G10: ['https://a.example/x>![t](https://evil.example/p.png)'] });
+    expect(summary).toContain('- <https://a.example/x%3E![t](https://evil.example/p.png)>');
+  });
+
+  it('is applied to text answers in the summary', () => {
+    const form = buildForm(config, ['AI_AGI_INTERN']);
+    expect(renderSummary(form, { G4: '[win](https://evil.example)' })).toContain('\\[win\\](https://evil.example)');
   });
 });

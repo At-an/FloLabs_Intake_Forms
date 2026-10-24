@@ -76,13 +76,41 @@ export async function checkLimitAndHuman(
   return undefined;
 }
 
+/**
+ * Reads the body but never more than `maxBytes`, whatever Content-Length claims (it may be
+ * missing or false, e.g. with chunked uploads). Throws VALIDATION_FAILED past the limit.
+ */
+export async function readBodyCapped(request: Request, maxBytes: number): Promise<Uint8Array> {
+  if (Number(request.headers.get('content-length') ?? '0') > maxBytes) throw new AppError('VALIDATION_FAILED');
+  if (!request.body) return new Uint8Array();
+  const reader = request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > maxBytes) {
+      await reader.cancel().catch(() => {});
+      throw new AppError('VALIDATION_FAILED');
+    }
+    chunks.push(value);
+  }
+  const bytes = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return bytes;
+}
+
 /** Reads a small JSON object body; throws VALIDATION_FAILED for anything else. */
 export async function readJsonObject(request: Request, maxBytes: number): Promise<Record<string, unknown>> {
   if (!request.headers.get('content-type')?.toLowerCase().startsWith('application/json')) {
     throw new AppError('VALIDATION_FAILED');
   }
-  const text = await request.text();
-  if (new TextEncoder().encode(text).length > maxBytes) throw new AppError('VALIDATION_FAILED');
+  const text = new TextDecoder().decode(await readBodyCapped(request, maxBytes));
   let body: unknown;
   try {
     body = JSON.parse(text);
