@@ -20,6 +20,9 @@ Plus a Contact Us form and a Newsletter widget for FloLabs websites.
 - Twenty CRM: `https://157-230-82-204.sslip.io` (REST/GraphQL API; API key in env only).
 - Cloudflare Turnstile (bot protection). Cloudflare R2 (CV storage).
 - POC runs locally with `npm run dev`. No hosting deployment yet.
+- App lives in this folder (`flolabs-intake-handoff/`, where `.env.local` is). Commands: `npm run dev | build | lint | typecheck | test`; `npm run test:live` = read-only checks against the live Twenty.
+- Pinned: Next 16.4.3, React 19.3.1, Zod 4.6.7, TypeScript 6.0.3 (typescript-eslint does not support TS 7 yet), ESLint 9.39.5 (Next's lint plugins cap at 9), Vitest 5.0.5.
+- Server code lives in `src/server/` and imports `server-only`. Twenty access only through `src/server/twenty` (GraphQL with variables; REST filters break on `)` and `,`).
 - Forms address: dev/test `forms.157-230-82-204.sslip.io`; production `forms.flolabsinnovations.com`.
 - Env vars: `TWENTY_BASE_URL`, `TWENTY_API_KEY`, `TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY`, `LINK_TOKEN_SECRET`, `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`. All in `.env.local` (git-ignored). Locally, use Cloudflare's Turnstile test keys.
 
@@ -102,7 +105,8 @@ Existing: **People** (native), **Applications** (custom; belongs to one Person a
 POC scope: **the Application form first.** Forms 1-3, Contact Us and Newsletter come in a revised POC.
 1. T1 schema verification: **done** (`docs/twenty-schema.md`). Checkpoint A decisions: **approved** (2026-10-24).
 2. T2a Application schema changes: **done** (2026-10-24). T2b (new objects, Person consent fields) waits for the revised POC.
-3. T3 scaffold + typed Twenty client, then Phase 1 (T4-T7) as in the plan.
+3. T3 scaffold + typed Twenty client: **done** (2026-10-24, branch `t3-scaffold-twenty-client`).
+4. Next: Phase 1 (T4-T7) as in the plan, starting with T4 (shared config + Zod schema).
 
 Recommended skills per step: source-driven-development (T1), api-and-interface-design (T5), security-and-hardening (T5, T7, T15), incremental-implementation, frontend-ui-engineering (T6), test-driven-development, flolabs-code-reviewer before merge, documentation-and-adrs (T16).
 

@@ -43,7 +43,7 @@ Schema verification (T1) -> Application schema changes (T2a) -> Twenty client + 
 - Verify: same snapshot diff.
 - Depends: T2a.
 
-**T3 Scaffold + typed Twenty client.** M
+**T3 Scaffold + typed Twenty client.** M. **Done 2026-10-24**: env fail-fast via `src/instrumentation.ts`; client in `src/server/twenty` (GraphQL, named operations: findSiteByKey, findPersonByEmail, createPerson, updatePerson, findApplicationBySubmissionKey, createApplication); IDs-only logger; error mapper; 19 unit tests + 4 live read-only tests (`npm run test:live`). CV upload operations are added in T6c.
 - AC: `npm run dev` works; env validated at boot (fails fast if missing); client exposes only named operations; ESLint + Vitest set up.
 - AC (risk mitigation): logger helper that only accepts IDs/codes; a central error mapper returns generic messages; test asserts no email/phone appears in log output.
 - Verify: unit tests with a mocked fetch; `.env.local` git-ignored.

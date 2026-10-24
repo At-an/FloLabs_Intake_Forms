@@ -2,7 +2,7 @@
 
 Verified against the live instance on 2026-10-23 (`https://157-230-82-204.sslip.io`); updated after T2a on 2026-10-24.
 Machine-readable snapshots: `docs/snapshots/twenty-schema-2026-10-23.json` (T1) and `docs/snapshots/twenty-schema-2026-10-24-t2a.json` (current; field ids, options, relations).
-Re-generate with `node --env-file=.env.local flolabs-intake-handoff/scripts/t1-schema-probe.mjs <out.json>` from the repo root.
+Re-generate with `node --env-file=.env.local scripts/t1-schema-probe.mjs <out.json>` from `flolabs-intake-handoff/`.
 
 Live data at verification time: 5 People, 1 Application, 1 Site, 0 Attachments.
 
@@ -65,8 +65,8 @@ People also carry Twenty's native activity relations (notes, tasks, timeline, ca
 
 | Endpoint | Result | Use |
 |---|---|---|
-| REST records `/rest/<plural>` | 200 | Record reads/writes |
-| GraphQL records `/graphql` | 200 | Record reads/writes |
+| REST records `/rest/<plural>` | 200 | Record reads/writes. Not used by the app: the `filter` parser fails on `)` and `,` even inside quotes (T3) |
+| GraphQL records `/graphql` | 200 | Record reads/writes. **Used by the app** (values as variables) |
 | REST metadata `/rest/metadata/objects` | 200 (403 until 2026-10-24) | Schema reads and changes (T2) |
 | GraphQL metadata `/metadata` | 200 | Schema reads, file upload mutations |
 | OpenAPI `/rest/open-api/core` | 200 | Per-object request/response schemas |
