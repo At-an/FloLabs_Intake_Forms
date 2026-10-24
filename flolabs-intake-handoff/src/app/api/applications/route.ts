@@ -11,7 +11,7 @@ export const dynamic = 'force-dynamic';
 
 // Rate limits (T7): per IP counts every request; per email counts valid submissions.
 const IP_LIMIT = { limit: 10, windowMs: 10 * 60 * 1000 };
-const EMAIL_LIMIT = { limit: 5, windowMs: 60 * 60 * 1000 };
+const EMAIL_LIMIT = { limit: 5, windowMs: 30 * 60 * 1000 };
 
 let handle: ReturnType<typeof createApplicationsHandler> | undefined;
 
