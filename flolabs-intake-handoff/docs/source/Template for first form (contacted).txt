@@ -1,0 +1,183 @@
+General Questions:
+
+Full name
+Email
+Program applied for
+Why are you interested in this specific program?
+What do you hope to learn or become capable of doing through this program?
+Relevant education/background
+Relevant experience, projects, portfolio, research, or coursework
+How many hours per week can you realistically commit?
+How long can you maintain that commitment?
+Portfolio/GitHub/LinkedIn/website, where relevant
+Are you comfortable working remotely and collaborating with a team?
+Are you able to attend the required meetings associated with your program?
+Anything else relevant to your application? - Optional
+
+
+Then, we start asking specific questions like:
+Which BootCamp University School does your selected program belong to?
+
+This question will help us branch into specific questions based on track. We have:
+
+School of Artificial Intelligence & Software Engineering
+School of Robotics & Intelligent Systems
+School of Business Management, Growth & Entrepreneurship
+School of Design & Technical Communication
+School of Emerging Sciences & Technology
+
+
+Artificial Intelligence & Software Engineering
+
+1. Tell us about the most technically challenging software, AI, or computational project you have worked on. What was your own contribution?
+
+2. What programming languages, frameworks, platforms, or development tools are you currently comfortable using?
+
+3. When you encounter a technical problem you do not know how to solve, how do you normally approach it?
+
+Then split:
+
+AI/AGI
+Ask something like:
+What area of artificial intelligence currently interests you most, and what would you like to build or investigate in that area?
+
+Machine Learning
+Describe any experience you have working with datasets, training models, evaluating models, or implementing ML systems.
+
+Computer Vision
+Have you previously worked with images, video, object detection, classification, segmentation, tracking, or related computer-vision problems? Briefly explain.
+
+Front-End
+Share one interface you have built. What decisions did you make around usability, responsiveness, accessibility, or performance?
+
+Back-End
+Describe your experience with APIs, databases, authentication, server-side applications, or cloud infrastructure.
+
+Software Development
+Describe a software project you have taken from an idea or requirement to a working implementation.
+
+
+
+
+Robotics & Intelligent Systems
+1. What interests you about intelligent physical systems, robotics, or human-machine interaction?
+
+2. Describe one hardware, robotics, electronics, simulation, engineering, neuroscience, or technical project you have worked on.
+
+3. Which tools or technologies have you used? - Use a multiple choice option like: Arduino, ESP32, Raspberry Pi, MATLAB, Simulink, ROS, C/C++, Python, sensors, PCB tools, CAD, EEG, signal processing.
+
+Then split:
+
+Control Systems
+Describe your understanding or experience with feedback, control, modelling, simulation, or autonomous systems.
+
+Embedded Systems
+What experience do you have working with microcontrollers, sensors, communication protocols, electronics, or firmware?
+
+AI & Robotics Product Development
+If you were helping develop an AI-enabled physical product, what factors would you consider before deciding what to build?
+
+Neuroscience
+Which area interests you most: neural signals, neurotechnology, cognition, human performance, brain-computer interfaces, or human-robot interaction? Why?
+
+
+
+
+
+Business Management, Growth & Entrepreneurship
+
+Tell us about a project, organization, campaign, business, or initiative where you helped produce a measurable outcome.
+What does success look like in the type of work you are applying to do?
+
+Then split.
+
+Business Development & Sales
+Pick one AI or robotics product. Who would you sell it to, what problem would it solve, and how would you approach the customer?
+
+
+Marketing
+Choose a product you understand well. Who is its target audience and how would you position it?
+
+Digital Marketing
+Which digital channels would you prioritize for a new technology product and why?
+
+Content Marketing
+Show us one piece of content you are proud of, or describe how you would turn a complex product idea into useful content.
+
+GTM Influencer
+Imagine you are introducing a new AI or robotics product to a community unfamiliar with it. How would you generate initial interest and trust?
+
+SEO
+If a technically strong website receives little organic search traffic, what would you investigate first?
+
+Social Media
+Choose one platform and explain how you would adapt content to its audience and format.
+
+Project Management
+Describe a project involving multiple people. How would you keep responsibilities, dependencies, timelines, and blockers visible?
+
+Operations
+Describe a recurring process you would improve. What would you measure before and after making changes?
+
+
+
+
+
+Design & Technical Communication
+
+Design
+
+Link your portfolio or provide examples of previous design work.
+Pick one digital product you use regularly. What is one user-experience problem you would improve and why?
+Briefly describe how you normally move from understanding a problem to creating a design?
+
+Technical Writing
+
+1. Provide a writing or documentation sample.
+
+2. Imagine you need to explain a technically complex feature to a non-technical user. How would you approach it?
+
+3. Rewrite one short piece of poorly structured product documentation.
+
+
+
+
+
+
+Emerging Sciences & Technology
+Here, we branch into:
+
+Space Science
+
+Which area of space science or technology interests you most, and why?
+
+2. Describe a research question, technical problem, mission, or development in space science that you find important.
+
+3. What research, analytical, computational, engineering, or scientific skills could you contribute?
+
+Sport Science
+
+Which area of sport science or human performance interests you most?
+
+2. Describe a question related to athlete performance, recovery, biomechanics, physiology, monitoring, or training that you would like to investigate.
+
+3. What experience do you have with research, data, athletics, health technology, or human-performance analysis?
+
+
+Ethical & Legal Research
+
+1. Identify one legal or ethical challenge created by AI or another emerging technology that you believe deserves deeper research.
+
+2. How would you approach researching an issue where law, technology, and ethics may point toward different conclusions?
+
+3. Describe any previous research, academic writing, legal analysis, policy work, or ethics-related experience.
+
+
+
+
+
+Closing general question:
+
+After reviewing the information specific to your program, what part of the program interests you most, and is there anything you discovered that makes you uncertain about whether this opportunity is right for you?
+
+

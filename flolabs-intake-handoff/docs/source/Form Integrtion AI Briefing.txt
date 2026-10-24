@@ -1,0 +1,155 @@
+Build a proof-of-concept replacement for our current HubSpot iframe application form.
+
+### Technology
+
+Use Next.js with TypeScript and React.
+
+The project should run locally with `npm run dev`.
+
+Do not deploy the POC to Vercel, Netlify, GitHub Pages, or another hosting platform at this stage.
+
+### Architecture
+
+The browser must submit the form to a server-side Next.js Route Handler/API route.
+
+The browser must NOT communicate directly with the Twenty API.
+
+The server-side handler should communicate with our self-hosted Twenty CRM through its API.
+
+Use environment variables:
+
+TWENTY_BASE_URL
+TWENTY_API_KEY
+
+Do not hard-code secrets. Do not commit `.env.local`.
+
+### Twenty instance
+
+Base URL:
+
+[https://157-230-82-204.sslip.io](https://157-230-82-204.sslip.io)
+
+The API key will be provided separately and must not be committed to source control.
+
+### Submission workflow
+
+When a valid application is submitted:
+
+1. Validate and normalize the submitted data server-side.
+2. Look for an existing Person using the submitted email address.
+3. If no matching Person exists, create one.
+4. If a Person exists, update appropriate Person fields without creating an unnecessary duplicate.
+5. Create exactly ONE Application record for the submission.
+6. Relate the Application to the Person.
+7. Relate the Application to the appropriate Site.
+8. Store all selected positions in the Application's multi-select Positions Applied For field.
+9. Return a useful success or error response to the applicant.
+
+One applicant may select multiple positions in one submission. Do NOT create one Application per position.
+
+A Person may submit additional applications later. Those should create additional Application records related to the same Person where matching is reliable.
+
+### Person fields
+
+Map application-form data to the native Twenty People object:
+
+First Name → Person name
+Last Name → Person name
+Email → Emails
+Phone Number → Phones
+Country/Region → Location country
+State/Region → Location state/region
+City → Location city
+LinkedIn URL → native LinkedIn field
+Education → Education
+
+The Location field in Twenty is a custom Address-type field. Street-address fields may remain blank.
+
+### Application fields
+
+Store submission-specific information on Application:
+
+Positions Applied For → multi-select
+Lifecycle Stage
+Lead Status
+Source
+Source Detail
+Referral Name
+Submitted At
+Source Form ID
+Form Version
+Communication Consent
+Communication Consent At
+Phone Messaging Consent
+Phone Messaging Consent At
+Safe Sender Confirmed
+Consent Version
+CV / Résumé reference when file handling is implemented
+Person relation
+Site relation
+
+Use the exact Twenty API field/object names provided separately when implementing API calls.
+
+### Initial workflow state
+
+For the POC, use agreed test values for Lifecycle Stage and Lead Status. Do not invent or permanently encode the full status taxonomy; the final values will be supplied after the HubSpot workflow configuration is captured.
+
+### Form behavior
+
+Replicate the existing application's fields and option lists closely enough to test the actual workflow.
+
+Position Applied For must permit multiple selections.
+
+Source should be a controlled selection, with Source Detail shown/accepted when Other is selected.
+
+Referral Name is optional.
+
+The form should validate required inputs both client-side for usability and server-side for security.
+
+### Security
+
+Never expose the Twenty API key to the browser.
+
+Never put secrets in source code.
+
+Never commit `.env.local`.
+
+Do not connect directly to the Twenty PostgreSQL database.
+
+Do not create an unauthenticated generic proxy that allows arbitrary Twenty API calls.
+
+Only accept and transform the specific fields needed by the application form.
+
+Return generic user-facing errors without exposing API keys, stack traces, database information, or other internal details.
+
+### Out of scope for the first integration test
+
+Do not implement:
+
+Amazon SES
+marketing campaigns
+Zite replacement
+BigQuery integration
+advanced duplicate resolution
+production website installation
+Telnyx
+AI features
+CRM migration
+
+Cloudflare Turnstile and final CV/R2 storage may be added after the basic Twenty write path is proven.
+
+### POC acceptance test
+
+The POC succeeds when a tester can complete the mock application form locally and Twenty shows:
+
+- the correct Person created or matched;
+- Person fields correctly populated;
+- one new Application;
+- the Application related to the correct Person;
+- the Application related to the test Site;
+- all selected positions saved on the same Application;
+- Source and related application fields populated;
+- submission timestamp recorded;
+- no Twenty API credential exposed in browser developer tools or source code.
+
+Document setup instructions, required environment variables, Twenty API calls used, assumptions, and any blockers or limitations discovered.

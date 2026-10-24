@@ -1,0 +1,66 @@
+## Twenty Application Form POC — Connection Details
+
+### Twenty Instance
+Base URL:
+
+https://157-230-82-204.sslip.io
+
+A dedicated Twenty API key will be provided separately. Store it in `.env.local` as `TWENTY_API_KEY`. Do not commit it to Git or expose it in browser-side code.
+
+### Site Record for POC
+
+Use the following existing Twenty Site record:
+
+Name: FloLabs International  
+Site ID: flolabs_international  
+Hostname: www.flolabs.international  
+Active: Yes
+
+The applicant should NOT select the Site. The form/backend should associate this form with `flolabs_international` automatically.
+
+### Required Twenty Record Flow
+
+For each test submission:
+
+1. Find an existing Person by email where possible.
+2. Create the Person if no match exists.
+3. Create exactly one Application record.
+4. Link the Application to the Person.
+5. Link the Application to the FloLabs International Site record.
+6. Store all selected positions in the same Application record.
+7. Return a clear success or error response.
+
+### Relevant Objects
+
+Native object:
+- People
+
+Custom objects:
+- Application
+- Site
+
+Application has relations to:
+- Person
+- Site
+
+### Important Modeling Rules
+
+One Person may have many Applications.
+
+One Application may contain multiple Positions Applied For.
+
+Do not create one Application per selected position.
+
+Applicant identity data belongs on People.
+
+Submission-specific data belongs on Application.
+
+### Security
+
+The browser must not call Twenty directly with the API key.
+
+Use a server-side Next.js Route Handler/API route.
+
+Do not connect directly to PostgreSQL.
+
+Do not expose Twenty credentials in source code, logs, browser developer tools, or Git.

@@ -1,0 +1,140 @@
+--- FloLabs Intake Forms and Fields Across Platforms ---
+1. Robocollective
+a. Contact Us form
+   - First Name
+   - Last Name
+   - Email
+   - Subject
+   - How can we help?
+b. Newsletter
+   - Email Address
+
+2. FloLabsInnovationsGroup
+a. Newsletter
+   - Email Address
+
+3. Space Ventures Institute
+a. NewsLetter
+   - Email Address
+
+
+4. FloLabs International
+a. NewsLetter
+   - Email Address
+b. Application form (custom created by FloLabs on HubSpot)
+   - FirstName
+   - LastName
+   - Email Address
+   - Phone Number (country code and contact number)
+   - Country/Region
+   - State/Region
+   - City/Town
+   - LinkedIn URL
+   - Education/Major
+   - Job Title (drop down list with possibility to check multiple check boxes)
+   - CV (file Upload)
+   - How did you here about us? (drop down list with possibility to check multiple check boxes).
+   - A field for the specialized means you heard about us (in case you chosed 'other' for the 'How did you hear about us?' question) 
+   - A field for the name of the person who referred you (in case you choosed 'referral' for the 'How did you hear about us?' question)
+   - A check box to agree you have white listed flolabs in your mail box and added them to your mail contact list
+
+
+
+** Content of the Drop-down Lists **
+A. Job Title
+   - AI/AGI Intern
+   - Animal Science and Veterinary Research Intern
+   - Biomedical Engineering Intern
+   - Business Development and Sales Intern (AI and Robotics)
+   - Computer Vision Engineering Intern 
+   - Content Marketing Intern
+   - Control Systems Engineering Intern
+   - Digital Marketing Intern
+   - EdTech and Innovation Intern
+   - Embedded Systems Intern
+   - Ethical and Legal Research Intern
+   - Finance Intern
+   - Froont-end Developer Intern
+   - GTM Engineer (Go-To-Market Engineer) Intern
+   - GTM Influencer Intern
+   - Hospitality and Tourism Intern
+   - Human-Robot Interaction Intern
+   - Journalism and PR Intern
+   - Machine Learning Engineering Intern
+   - Marketing Intern
+   - Mechatronics Engineering Intern
+   - Neuroscience Intern
+   - Operations Intern
+   - Podcast Production Intern Position
+   - Product Development Intern (AI and Robotics)
+   - Project Management Intern
+   - Prompt Engineer Intern
+   - Quality Assurance Intern
+   - Quantum Engineer Intern 
+   - Research Associate Intern (Open-Source Projects)
+   - Robotics Engineering Intern
+   - Sensor Integration Intern
+   - SEO Specialist Intern
+   - Social Media Intern
+   - Software Development Intern
+   - Space Science Intern
+   - sport Science Intern
+   - Technical Writing Intern
+   - UI/UX Design Intern
+
+b. How did you here about us?
+   - LinkedIn
+   - FaceBook
+   - TikTok
+   - Reddit
+   - YouTube
+   - Instagram
+   - X (Twitter)
+   - Company WebSite 
+   - Job Board
+   - Indeed 
+   - Glassdoor
+   - Google 
+   - SimplifiedHired
+   - Handshake
+   - Work.ua
+   - Alabama State University 
+   - Jackson College
+   - Purdue Northwest
+   - Austin Community College
+   - Central Georgia Technical College
+   - Texas A&M University Kingsville
+   - Texas A&M University-Corpus Christi
+   - Northeastern University's Internal Job Portal
+   - Event
+   - Referral
+   - Other
+
+
+
+Note: In total there are just three forms to implement; contact us, newsletter (basically a field requiring an email address).
+
+
+** UI/display type **
+- Embedded form: Static inline forms injected directly into internal or external web pages.
+- Standard page: Dedicated landing page hosted entirely (just like the way HubSpot does). Useful for distributing direct URL links via email.
+- Pop-up/Overlay forms to ease form filling or inputing by the user.
+
+
+** Intake form process **
+form Submission (creates application) [tigger: application created] -> applicant receives first the email and is moved to the application pipeline [trigger: applicant declares interest after receiving first email by replying interested, yes, happy to take part or similar words] ->  aplicant receives the second email that contains the link to the first form (contacted); which should be customized as per the job title applied for (meaning an applicant that applied for Social Media intern should see something relevant to his/her role and different from another applicant who applied for NeuroScience Intern role) and the link to the second form (before meeting) [trigger: the applicant has filled and submitted in two forms (contacted and before meeting) before he/she can join orientation meeting] -> Orientation meeting [trigger: orientation meeting complete] -> third form (masterclass) [trigger: applicant has filled and submitted the third form] -> Applicant is Onboarded to the company/team. 
+
+
+Note: 
+1. The applicant must fill the first and second forms (contacted and before meeting) before the orientation meeting.
+2. The applicant must fill all the three forms after the application before being on boarded to the comapny/team.
+3. The intake form process above serve as a guide to understand the flow of the intern application process. It will  also guide the future automation proposal and implementation. I believe that, it will also shape some of the fields of the tables of the database (when creating or updating any table or the Twenty CRM because of what data you believe should is important to be recorded like the applicantion status, let me know before doing that).
+4. I want all the forms (contacted, before meeting and masterclass) to be made as Standard pages (as described in the UI/display type section above, but the pages should be where the CRM is hosted). 
+
+
+
+
+
+
+
+
