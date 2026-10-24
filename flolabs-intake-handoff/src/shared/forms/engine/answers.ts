@@ -46,7 +46,13 @@ function answerSchema(q: AnswerQuestion): z.ZodType {
   }
 }
 
-const isVisible = (q: AnswerQuestion, answers: Answers) => !q.showIf || answers[q.showIf.questionId] === q.showIf.equals;
+/** Whether a question is shown for the current answers (hidden questions are neither required nor kept). */
+export function isVisible(q: Pick<AnswerQuestion, 'showIf'>, answers: Answers): boolean {
+  if (!q.showIf) return true;
+  const value = answers[q.showIf.questionId];
+  if ('includes' in q.showIf) return Array.isArray(value) && value.includes(q.showIf.includes);
+  return value === q.showIf.equals;
+}
 const isEmpty = (value: unknown) => value === undefined || value === null || (Array.isArray(value) && value.length === 0);
 
 /**

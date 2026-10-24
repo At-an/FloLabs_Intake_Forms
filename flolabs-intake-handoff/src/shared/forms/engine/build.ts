@@ -48,7 +48,7 @@ export function buildForm(config: FormConfig, applicantPrograms: readonly string
   const tracks = TRACKS.map((t) => t.value).filter((t) => programs.some((p) => trackOf(p) === t));
 
   const sections: Section[] = [];
-  if (config.intro.length) sections.push({ id: 'intro', title: 'About you', kind: 'intro', groups: [{ questions: config.intro }] });
+  if (config.intro.length) sections.push({ id: 'intro', title: config.introTitle ?? 'About you', kind: 'intro', groups: [{ questions: config.intro }] });
 
   for (const track of tracks) {
     const trackConfig = config.tracks[track];
@@ -62,7 +62,7 @@ export function buildForm(config: FormConfig, applicantPrograms: readonly string
     if (groups.length) sections.push({ id: `track:${track}`, title: labelOf(TRACKS, track), kind: 'track', track, groups });
   }
 
-  if (config.closing.length) sections.push({ id: 'closing', title: 'Closing', kind: 'closing', groups: [{ questions: config.closing }] });
+  if (config.closing.length) sections.push({ id: 'closing', title: config.closingTitle ?? 'Closing', kind: 'closing', groups: [{ questions: config.closing }] });
 
   return {
     formType: config.formType,

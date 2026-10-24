@@ -40,16 +40,31 @@ export function checkIpLimit(request: Request, deps: GuardDeps, event: string): 
 }
 
 /** Per-email limit, then Turnstile. Returns a response to send when either fails. */
-export async function checkEmailAndHuman(
+export function checkEmailAndHuman(
   email: string,
   token: unknown,
   ip: string | undefined,
   deps: GuardDeps,
   event: string,
 ): Promise<Response | undefined> {
-  const check = deps.emailLimiter.hit(`email:${email}`);
+  return checkLimitAndHuman(`email:${email}`, 'RATE_LIMIT_EMAIL', token, ip, deps, event);
+}
+
+/**
+ * Second limit (`deps.emailLimiter`) on any key that identifies the sender, e.g. the Application
+ * of a signed link, then Turnstile. Returns a response to send when either fails.
+ */
+export async function checkLimitAndHuman(
+  limitKey: string,
+  limitCode: string,
+  token: unknown,
+  ip: string | undefined,
+  deps: GuardDeps,
+  event: string,
+): Promise<Response | undefined> {
+  const check = deps.emailLimiter.hit(limitKey);
   if (!check.allowed) {
-    deps.logger.warn(event, { code: 'RATE_LIMIT_EMAIL' });
+    deps.logger.warn(event, { code: limitCode });
     return rateLimited(check.retryAfterSeconds);
   }
   const human = await deps.verifyHuman(token, ip);
@@ -101,5 +116,22 @@ export function singleFlight<T>() {
       pending.finally(() => inFlight.delete(key)).catch(() => {});
     }
     return pending;
+  };
+}
+
+/**
+ * Runs jobs with the same key one after another (in this process). Used where two different
+ * requests must not both pass a "not done yet" check, e.g. two tabs sending the same link form.
+ */
+export function keyedQueue() {
+  const tails = new Map<string, Promise<unknown>>();
+  return <T>(key: string, run: () => Promise<T>): Promise<T> => {
+    const next = (tails.get(key) ?? Promise.resolve()).then(run, run);
+    const tail = next.catch(() => {});
+    tails.set(key, tail);
+    void tail.then(() => {
+      if (tails.get(key) === tail) tails.delete(key);
+    });
+    return next;
   };
 }

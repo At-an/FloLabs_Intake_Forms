@@ -7,6 +7,8 @@ export type ErrorCode =
   | 'VALIDATION_FAILED'
   | 'BOT_CHECK_FAILED'
   | 'RATE_LIMITED'
+  | 'LINK_INVALID'
+  | 'ALREADY_SUBMITTED'
   | 'UPSTREAM_UNAVAILABLE'
   | 'INTERNAL';
 
@@ -14,6 +16,8 @@ const PUBLIC_ERRORS: Record<ErrorCode, { status: number; message: string }> = {
   VALIDATION_FAILED: { status: 400, message: 'Please check the highlighted fields and try again.' },
   BOT_CHECK_FAILED: { status: 403, message: 'We could not verify your submission. Please try again.' },
   RATE_LIMITED: { status: 429, message: 'Too many attempts. Please wait a moment and try again.' },
+  LINK_INVALID: { status: 403, message: 'This link is not valid. Please open the exact link from your email.' },
+  ALREADY_SUBMITTED: { status: 409, message: 'You have already sent this form. Thank you, we have your answers.' },
   UPSTREAM_UNAVAILABLE: { status: 502, message: 'We could not save your submission right now. Please try again later.' },
   INTERNAL: { status: 500, message: 'Something went wrong. Please try again later.' },
 };

@@ -14,6 +14,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:live": "node --env-file=.env.local node_modules/vitest/vitest.mjs run live.test",
+    "test:live-write": "node --env-file=.env.local scripts/run-live-write.mjs",
     "make-link": "node --env-file=.env.local --conditions=react-server scripts/make-form-link.mts"
   },
   "dependencies": {

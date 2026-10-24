@@ -134,6 +134,13 @@ Space Science (3), Sport Science (3), Ethical & Legal Research (3), Animal Scien
 
 Validation: the two references must have different emails, and neither may be the applicant's own email.
 
+**Implementation choices (T12-T14, 2026-10-24; confirm or change):**
+- TW1 writing sample and DE1 portfolio: links only (up to 3), no file upload; Form Submission has no file field.
+- RO3 "Other" reveals a required "Which other tools or technologies?" text field (the P in section 2a).
+- Journalism & PR Q1 "Share a link..." stays a text answer, as written.
+- Form 3 answers also keep the two references under `answers.references`; the Reference records are the ones HR works with.
+- Drafts (approved): unsent answers are kept in the applicant's browser only, per Application + form, until sent or cleared.
+
 ## 5. Contact Us (embedded)
 
 | Field | Input | Type -> target | Req |

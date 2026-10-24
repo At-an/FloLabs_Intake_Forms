@@ -1,5 +1,16 @@
 import 'server-only';
-import type { ApplicationForLink, ApplicationInput, ApplicationRef, InquiryInput, Person, PersonInput, Site } from './types';
+import type {
+  ApplicationForLink,
+  ApplicationInput,
+  ApplicationRef,
+  FormSubmissionInput,
+  FormSubmissionRef,
+  InquiryInput,
+  Person,
+  PersonInput,
+  ReferenceInput,
+  Site,
+} from './types';
 
 // Purpose-built Twenty client (CLAUDE.md rule 3): named operations only, no generic proxy.
 // All values travel as GraphQL variables; the REST filter syntax breaks on characters
@@ -220,6 +231,49 @@ export function createTwentyClient({ baseUrl, apiKey, fetch: fetchImpl = fetch, 
         { applicationId, formType },
       );
       return first(data.formSubmissions);
+    },
+
+    async findFormSubmissionBySubmissionKey(submissionKey: string): Promise<FormSubmissionRef | null> {
+      const data = await request<{ formSubmissions: Connection<FormSubmissionRef> }>(
+        'twenty.findFormSubmissionBySubmissionKey',
+        `query FindFormSubmissionBySubmissionKey($submissionKey: String!) {
+          formSubmissions(filter: { submissionKey: { eq: $submissionKey } }, first: 1) { edges { node { id applicationId formType } } }
+        }`,
+        { submissionKey },
+      );
+      return first(data.formSubmissions);
+    },
+
+    async createFormSubmission(input: FormSubmissionInput): Promise<{ id: string }> {
+      const data = await request<{ createFormSubmission: { id: string } }>(
+        'twenty.createFormSubmission',
+        `mutation CreateFormSubmission($data: FormSubmissionCreateInput!) { createFormSubmission(data: $data) { id } }`,
+        { data: input },
+      );
+      return data.createFormSubmission;
+    },
+
+    /** A Reference already saved for this Application with this email (lets a retried Form 3 reuse it). */
+    async findReferenceFor(applicationId: string, email: string): Promise<{ id: string } | null> {
+      const data = await request<{ references: Connection<{ id: string }> }>(
+        'twenty.findReferenceFor',
+        `query FindReferenceFor($applicationId: UUID!, $email: String!) {
+          references(filter: { applicationId: { eq: $applicationId }, email: { primaryEmail: { eq: $email } } }, first: 1) {
+            edges { node { id } }
+          }
+        }`,
+        { applicationId, email },
+      );
+      return first(data.references);
+    },
+
+    async createReference(input: ReferenceInput): Promise<{ id: string }> {
+      const data = await request<{ createReference: { id: string } }>(
+        'twenty.createReference',
+        `mutation CreateReference($data: ReferenceCreateInput!) { createReference(data: $data) { id } }`,
+        { data: input },
+      );
+      return data.createReference;
     },
 
     async findInquiryBySubmissionKey(submissionKey: string): Promise<{ id: string } | null> {

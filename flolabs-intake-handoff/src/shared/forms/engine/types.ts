@@ -15,8 +15,8 @@ export type TypedField =
   | 'canMeetCommitment'
   | 'referencesContactAllowed';
 
-/** Show (and require) a question only when another answer has a given value. */
-export type ShowIf = { questionId: string; equals: string | boolean };
+/** Show (and require) a question only when another answer has a given value (or, for a multi-select, includes it). */
+export type ShowIf = { questionId: string; equals: string | boolean } | { questionId: string; includes: string };
 
 type Base = {
   id: string;
@@ -53,6 +53,9 @@ export type FormConfig = {
   version: string;
   /** Questions before the track sections (Form 1 general part, Form 2 B1, Form 3 everything). */
   intro: readonly Question[];
+  /** Section headings; default "About you" and "Closing". */
+  introTitle?: string;
+  closingTitle?: string;
   /** Per-track sections; Form 3 has none. */
   tracks: Partial<Record<TrackValue, TrackConfig>>;
   /** Asked once at the end. */

@@ -1,7 +1,7 @@
 // Test helper: in-memory stand-in for the Twenty client that records every call.
 import type { Logger } from '../logger';
 import { createLogger } from '../logger';
-import type { ApplicationInput, InquiryInput, Person, PersonInput, Site } from '../twenty/types';
+import type { ApplicationForLink, ApplicationInput, FormSubmissionInput, InquiryInput, Person, PersonInput, ReferenceInput, Site } from '../twenty/types';
 import type { TwentyClient } from '../twenty/client';
 
 export const SITES: Site[] = [
@@ -13,8 +13,8 @@ export const SITES: Site[] = [
 export function fakeTwenty(
   options: {
     people?: Person[];
-    applications?: { id: string; submissionKey: string }[];
-    formSubmissions?: { id: string; applicationId: string; formType: string }[];
+    applications?: ({ id: string; submissionKey: string } & Partial<Pick<ApplicationForLink, 'positionAppliedFor' | 'person'>>)[];
+    formSubmissions?: { id: string; applicationId: string; formType: string; submissionKey?: string }[];
   } = {},
 ) {
   const formSubmissions = [...(options.formSubmissions ?? [])];
@@ -26,13 +26,17 @@ export function fakeTwenty(
     createApplication: [] as ApplicationInput[],
     uploadFile: [] as { filename: string; size: number; fieldMetadataId: string }[],
     createInquiry: [] as InquiryInput[],
+    createFormSubmission: [] as FormSubmissionInput[],
+    createReference: [] as ReferenceInput[],
     order: [] as string[],
   };
   let seq = 100;
   const nextId = () => `00000000-0000-4000-8000-${String(seq++).padStart(12, '0')}`;
 
   const inquiries: { id: string; submissionKey: string }[] = [];
-  const twenty: Omit<TwentyClient, never> = {
+  const references: (ReferenceInput & { id: string })[] = [];
+  // Writable, so a test can replace one operation (e.g. to make it fail).
+  const twenty: { -readonly [K in keyof TwentyClient]: TwentyClient[K] } = {
     findSiteByKey: async (key) => SITES.find((s) => s.siteId === key) ?? null,
     findPersonByEmail: async (email) => people.find((p) => p.emails?.primaryEmail === email) ?? null,
     findApplicationBySubmissionKey: async (key) => {
@@ -59,11 +63,33 @@ export function fakeTwenty(
     },
     findApplicationForLink: async (id) => {
       const found = applications.find((a) => a.id === id);
-      return found ? { id: found.id, positionAppliedFor: [], person: null } : null;
+      return found ? { id: found.id, positionAppliedFor: found.positionAppliedFor ?? [], person: found.person ?? null } : null;
     },
     findFormSubmissionFor: async (applicationId, formType) => {
       const found = formSubmissions.find((s) => s.applicationId === applicationId && s.formType === formType);
       return found ? { id: found.id } : null;
+    },
+    findFormSubmissionBySubmissionKey: async (key) => {
+      const found = formSubmissions.find((s) => s.submissionKey === key);
+      return found ? { id: found.id, applicationId: found.applicationId, formType: found.formType } : null;
+    },
+    createFormSubmission: async (input) => {
+      calls.createFormSubmission.push(input);
+      calls.order.push('createFormSubmission');
+      const id = nextId();
+      formSubmissions.push({ id, applicationId: input.applicationId, formType: input.formType, submissionKey: input.submissionKey });
+      return { id };
+    },
+    findReferenceFor: async (applicationId, email) => {
+      const found = references.find((r) => r.applicationId === applicationId && r.email.primaryEmail === email);
+      return found ? { id: found.id } : null;
+    },
+    createReference: async (input) => {
+      calls.createReference.push(input);
+      calls.order.push('createReference');
+      const id = nextId();
+      references.push({ ...input, id });
+      return { id };
     },
     findInquiryBySubmissionKey: async (key) => {
       const found = inquiries.find((i) => i.submissionKey === key);
@@ -83,7 +109,7 @@ export function fakeTwenty(
       return { id };
     },
   };
-  return { twenty, calls, people };
+  return { twenty, calls, people, formSubmissions, references };
 }
 
 export function captureLogger(): { logger: Logger; lines: string[] } {

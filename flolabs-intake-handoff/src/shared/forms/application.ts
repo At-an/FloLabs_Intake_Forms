@@ -1,10 +1,9 @@
-import { parsePhoneNumberFromString, type CountryCode } from 'libphonenumber-js';
 import { z } from 'zod';
 import { HR_EMAIL, LIMITS } from '../config/application';
-import { isCountryCode } from '../config/countries';
 import { valuesOf } from '../config/options';
 import { PROGRAMS } from '../config/programs';
 import { SOURCES } from '../config/sources';
+import { countryCode, phoneInput } from './phone';
 
 // The one Zod schema for the Application form (CLAUDE.md rule 4), shared by the browser
 // (live inline errors) and the server (authoritative check). The CV file is validated
@@ -20,32 +19,6 @@ const optionalText = (max: number) =>
     .max(max, `Use ${max} characters or fewer.`)
     .optional()
     .transform((value) => value || undefined);
-
-const countryCode = (message: string) =>
-  z.string(message).refine(isCountryCode, message).transform((value) => value as CountryCode);
-
-// Checked on its own (not in an object-level refinement) so its error shows even while
-// other fields are still empty: Zod skips object refinements after type errors elsewhere.
-const phoneField = z
-  .object({
-    country: countryCode('Choose the country code for your phone number.'),
-    number: z.string('Enter your phone number.').trim().min(1, 'Enter your phone number.').max(30, 'This phone number is too long.'),
-  })
-  .transform(({ country, number }, ctx) => {
-    const phone = parsePhoneNumberFromString(number, country);
-    if (!phone?.isValid()) {
-      ctx.addIssue({ code: 'custom', path: ['number'], message: 'Enter a valid phone number for the chosen country.' });
-      return z.NEVER;
-    }
-    return {
-      e164: phone.number,
-      countryCode: country,
-      callingCode: `+${phone.countryCallingCode}`,
-      nationalNumber: phone.nationalNumber,
-    };
-  });
-// A missing phone object gets the same message as an empty number.
-const phoneInput = z.looseObject({}, 'Enter your phone number.').pipe(phoneField);
 
 const linkedinField = optionalText(LIMITS.linkedinUrl).transform((value, ctx) => {
   if (!value) return undefined;

@@ -96,3 +96,39 @@ export type InquiryInput = {
   siteStatus: SiteStatus;
   siteKeyReceived?: string;
 };
+
+export type FormSubmissionInput = {
+  name: string;
+  formType: 'CONTACTED' | 'BEFORE_MEETING' | 'MASTERCLASS';
+  tracks: string[];
+  formVersion: string;
+  submittedAt: string;
+  submissionKey: string;
+  /** RAW_JSON keyed by question id (source of truth). */
+  answers: Record<string, unknown>;
+  /** RICH_TEXT generated from `answers`; Twenty stores the markdown. */
+  answersSummary: { markdown: string };
+  hoursPerWeek?: number;
+  commitmentDuration?: string;
+  remoteOk?: boolean;
+  canAttendMeetings?: boolean;
+  stillInterested?: string;
+  continueToInterview?: boolean;
+  canMeetCommitment?: string;
+  referencesContactAllowed?: boolean;
+  applicationId: string;
+};
+
+export type FormSubmissionRef = { id: string; applicationId: string | null; formType: string };
+
+export type ReferenceInput = {
+  /** The reference's full name (field labelled "Full Name" in Twenty). */
+  name: string;
+  title: string;
+  organization: string;
+  relationship: string;
+  email: Emails;
+  phone?: Phones;
+  knownDuration: string;
+  applicationId: string;
+};

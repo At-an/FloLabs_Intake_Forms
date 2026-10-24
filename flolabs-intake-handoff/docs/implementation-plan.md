@@ -117,6 +117,12 @@ Checkpoint C.
 **T13 Form 2 (5 track configs) -> Form Submission.** S (reuses the engine)
 **T14 Form 3 + 2 Reference records.** M
 - AC (each): read-only pre-fill; required/conditional rules; one Form Submission per token; typed filter fields populated; `answersSummary` markdown generated from `answers` (question text + answer, one heading per section).
+- **Code done 2026-10-24, live run blocked** (same permission gap as T9):
+  - Configs `src/shared/config/link-forms/` (texts from `docs/source` + spec section 8; versions `contacted-v1`, `before-meeting-v1`, `masterclass-v1`); one schema per form `src/shared/forms/link-forms.ts` (Form 3 references: different emails, not the applicant's own).
+  - `POST /api/forms/<contacted|before-meeting|masterclass>` (`src/server/forms/submit-link-form.ts`): IP limit -> signed link -> per-Application limit (5 / 30 min) -> Turnstile -> Twenty. Same `submissionKey` returns the original; used link = 409; concurrent sends for one link are queued, so only one passes. Form 3 saves the References first (reused by email on a retry), the Form Submission last.
+  - UI `src/app/_components/LinkForm.tsx`; **draft saving** in the applicant's browser (approved 2026-10-24): restored on reopening the link on the same device, deleted after a successful send, "Clear my draft" button; never sent to Twenty before submit.
+  - Dev-only preview without a link: `npm run dev`, then `/dev/link-form?form=contacted&programs=AI_AGI_INTERN,FINANCE_INTERN`.
+  - Live check (WRITES records, run once the role permissions are granted): `npm run test:live-write` (Contact Us + Forms 1-3 on the first test Application; uses up its Form 1-3 links). Not yet run successfully: on 2026-10-24 an accidental run stopped at the first forbidden read; no record was written (checked).
 
 Checkpoint D: one applicant (cross-track) goes Application -> Form 1 -> Form 2 -> Form 3; all records linked in Twenty.
 
