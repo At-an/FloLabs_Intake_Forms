@@ -1,0 +1,1776 @@
+{
+  "takenAt": "2026-10-24T10:14:24.237Z",
+  "objects": {
+    "site": {
+      "id": "f190e715-60d8-42c6-800a-46503c337702",
+      "namePlural": "sites",
+      "label": "Site",
+      "fields": [
+        {
+          "id": "ab9af7f9-b937-44f8-a1c2-449bfa1702c9",
+          "name": "active",
+          "label": "Active",
+          "type": "BOOLEAN",
+          "isSystem": false,
+          "isNullable": true
+        },
+        {
+          "id": "f2a2b0e4-f835-4f4d-b314-53a49513396b",
+          "name": "agentChatThreadTargets",
+          "label": "Chats",
+          "type": "RELATION",
+          "isSystem": false,
+          "isNullable": true,
+          "relation": "ONE_TO_MANY agentChatThreadTarget.target",
+          "settings": {
+            "relationType": "ONE_TO_MANY"
+          }
+        },
+        {
+          "id": "72afc281-6a0e-409c-bc66-f39987961493",
+          "name": "applications",
+          "label": "Applications",
+          "type": "RELATION",
+          "isSystem": false,
+          "isNullable": true,
+          "relation": "ONE_TO_MANY application.site",
+          "settings": {
+            "relationType": "ONE_TO_MANY"
+          }
+        },
+        {
+          "id": "b86675a6-6e10-4ce6-8c3b-6f57a7f85782",
+          "name": "attachments",
+          "label": "Attachments",
+          "type": "RELATION",
+          "isSystem": false,
+          "isNullable": true,
+          "relation": "ONE_TO_MANY attachment.target",
+          "settings": {
+            "relationType": "ONE_TO_MANY"
+          }
+        },
+        {
+          "id": "4b7851bd-5133-4992-8951-ff03e09e72b6",
+          "name": "createdAt",
+          "label": "Creation date",
+          "type": "DATE_TIME",
+          "isSystem": true,
+          "isNullable": false
+        },
+        {
+          "id": "834f22a9-7e73-41d9-b921-b8ac403e5605",
+          "name": "createdBy",
+          "label": "Created by",
+          "type": "ACTOR",
+          "isSystem": true,
+          "isNullable": false
+        },
+        {
+          "id": "5205eafa-4253-467f-96a9-10548ca88586",
+          "name": "deletedAt",
+          "label": "Deleted at",
+          "type": "DATE_TIME",
+          "isSystem": true,
+          "isNullable": true
+        },
+        {
+          "id": "2456561c-6dec-4469-b770-20d9acd71616",
+          "name": "hostname",
+          "label": "Hostname",
+          "type": "TEXT",
+          "isSystem": false,
+          "isNullable": true,
+          "settings": {
+            "displayedMaxRows": 0
+          }
+        },
+        {
+          "id": "f9cf1b55-b985-4fb2-9056-feb03ab0cf1d",
+          "name": "id",
+          "label": "ID",
+          "type": "UUID",
+          "isSystem": true,
+          "isNullable": false
+        },
+        {
+          "id": "9e99026e-5cb7-4230-9b2d-4b081c2186e5",
+          "name": "inquiries",
+          "label": "Inquiries",
+          "type": "RELATION",
+          "isSystem": false,
+          "isNullable": true,
+          "relation": "ONE_TO_MANY inquiry.site",
+          "settings": {
+            "relationType": "ONE_TO_MANY"
+          }
+        },
+        {
+          "id": "cabe14e9-d45a-4076-8b6f-1f49ba4f3122",
+          "name": "name",
+          "label": "Name",
+          "type": "TEXT",
+          "isSystem": false,
+          "isNullable": true
+        },
+        {
+          "id": "873a62a0-f912-45de-8718-5980ec8a0869",
+          "name": "noteTargets",
+          "label": "Notes",
+          "type": "RELATION",
+          "isSystem": false,
+          "isNullable": true,
+          "relation": "ONE_TO_MANY noteTarget.target",
+          "settings": {
+            "relationType": "ONE_TO_MANY"
+          }
+        },
+        {
+          "id": "8ab52325-62ac-40b1-97b8-619b304bf066",
+          "name": "position",
+          "label": "Position",
+          "type": "POSITION",
+          "isSystem": true,
+          "isNullable": false
+        },
+        {
+          "id": "ec4767d8-74a3-4c28-ba7a-3e0e21bcc5a2",
+          "name": "searchVector",
+          "label": "Search vector",
+          "type": "TS_VECTOR",
+          "isSystem": true,
+          "isNullable": true
+        },
+        {
+          "id": "d81b2105-e82f-4814-8339-2b5f3a4f715d",
+          "name": "siteId",
+          "label": "Site ID",
+          "type": "TEXT",
+          "isSystem": false,
+          "isNullable": true,
+          "settings": {
+            "displayedMaxRows": 0
+          }
+        },
+        {
+          "id": "d01b0b81-9528-4ca4-a41e-7ad557594763",
+          "name": "taskTargets",
+          "label": "Tasks",
+          "type": "RELATION",
+          "isSystem": false,
+          "isNullable": true,
+          "relation": "ONE_TO_MANY taskTarget.target",
+          "settings": {
+            "relationType": "ONE_TO_MANY"
+          }
+        },
+        {
+          "id": "a3edf6ab-a7b4-4007-9c4d-1fd72511432a",
+          "name": "timelineActivities",
+          "label": "Timeline Activities",
+          "type": "RELATION",
+          "isSystem": false,
+          "isNullable": true,
+          "relation": "ONE_TO_MANY timelineActivity.target",
+          "settings": {
+            "relationType": "ONE_TO_MANY"
+          }
+        },
+        {
+          "id": "42673aa9-a16f-4043-98bd-14c9905ff915",
+          "name": "updatedAt",
+          "label": "Last update",
+          "type": "DATE_TIME",
+          "isSystem": true,
+          "isNullable": false
+        },
+        {
+          "id": "512ece36-0b53-4a6b-a947-3eab32ca5164",
+          "name": "updatedBy",
+          "label": "Updated by",
+          "type": "ACTOR",
+          "isSystem": true,
+          "isNullable": false
+        }
+      ]
+    },
+    "application": {
+      "id": "bc3256dd-c95f-4ee1-b71a-3de66bb2a815",
+      "namePlural": "applications",
+      "label": "Application",
+      "fields": [
+        {
+          "id": "da543e94-e521-48c9-a03c-f60132624f92",
+          "name": "agentChatThreadTargets",
+          "label": "Chats",
+          "type": "RELATION",
+          "isSystem": false,
+          "isNullable": true,
+          "relation": "ONE_TO_MANY agentChatThreadTarget.target",
+          "settings": {
+            "relationType": "ONE_TO_MANY"
+          }
+        },
+        {
+          "id": "82134e35-45e6-4d61-88d2-dac49c426e35",
+          "name": "attachments",
+          "label": "Attachments",
+          "type": "RELATION",
+          "isSystem": false,
+          "isNullable": true,
+          "relation": "ONE_TO_MANY attachment.target",
+          "settings": {
+            "relationType": "ONE_TO_MANY"
+          }
+        },
+        {
+          "id": "06ac1e42-4bd3-49b3-a68f-fb3177a9498c",
+          "name": "communicationConsent",
+          "label": "Communication Consent",
+          "type": "BOOLEAN",
+          "isSystem": false,
+          "isNullable": true
+        },
+        {
+          "id": "be15ebab-f4e5-46e3-bd09-7bfded97e7ce",
+          "name": "communicationConsentAt",
+          "label": "Communication Consent At",
+          "type": "DATE_TIME",
+          "isSystem": false,
+          "isNullable": true,
+          "settings": {
+            "displayFormat": "USER_SETTINGS"
+          }
+        },
+        {
+          "id": "05707831-8885-4b01-8959-49fb98b20949",
+          "name": "consentVersion",
+          "label": "Consent Version",
+          "type": "TEXT",
+          "isSystem": false,
+          "isNullable": true,
+          "settings": {
+            "displayedMaxRows": 0
+          }
+        },
+        {
+          "id": "abb552ce-dc3e-48d2-b87f-82b0c7b23a73",
+          "name": "createdAt",
+          "label": "Creation date",
+          "type": "DATE_TIME",
+          "isSystem": true,
+          "isNullable": false
+        },
+        {
+          "id": "cb4e5cf7-8c19-45dc-95cf-aab0b768c423",
+          "name": "createdBy",
+          "label": "Created by",
+          "type": "ACTOR",
+          "isSystem": true,
+          "isNullable": false
+        },
+        {
+          "id": "b0449d1e-9e4f-42e5-8ba2-f53b9c4f8de8",
+          "name": "cvResume",
+          "label": "CV / Resume",
+          "type": "FILES",
+          "isSystem": false,
+          "isNullable": true,
+          "settings": {
+            "maxNumberOfValues": 10
+          }
+        },
+        {
+          "id": "dd398fec-39dd-4d9d-99e3-0267df654928",
+          "name": "deletedAt",
+          "label": "Deleted at",
+          "type": "DATE_TIME",
+          "isSystem": true,
+          "isNullable": true
+        },
+        {
+          "id": "ab80ee4a-2540-447f-b5fa-2ac5319b1a74",
+          "name": "formVersion",
+          "label": "Form Version",
+          "type": "TEXT",
+          "isSystem": false,
+          "isNullable": true,
+          "settings": {
+            "displayedMaxRows": 0
+          }
+        },
+        {
+          "id": "77ad558a-5ca2-43df-b23c-f66f1a080ddf",
+          "name": "id",
+          "label": "ID",
+          "type": "UUID",
+          "isSystem": true,
+          "isNullable": false
+        },
+        {
+          "id": "a371ce6c-f5f8-498d-99ac-81dfe72294b2",
+          "name": "leadStatus",
+          "label": "Lead Status",
+          "type": "SELECT",
+          "isSystem": false,
+          "isNullable": true,
+          "options": [
+            {
+              "value": "UNCONTACTED",
+              "label": "Uncontacted"
+            },
+            {
+              "value": "CONTACTED",
+              "label": "Contacted"
+            },
+            {
+              "value": "BEFORE_MEETING",
+              "label": "Before Meeting"
+            }
+          ]
+        },
+        {
+          "id": "2ca5215c-3b05-4f68-859b-04222c868ec6",
+          "name": "lifecycleStage",
+          "label": "Lifecycle Stage",
+          "type": "SELECT",
+          "isSystem": false,
+          "isNullable": true,
+          "options": [
+            {
+              "value": "INTERESTED",
+              "label": "Interested"
+            }
+          ]
+        },
+        {
+          "id": "6f5a8d40-4db8-44a7-81a5-bed8dbb7dbca",
+          "name": "name",
+          "label": "Name",
+          "type": "TEXT",
+          "isSystem": false,
+          "isNullable": true
+        },
+        {
+          "id": "c0c6cb15-76c2-424b-a59c-f3070e3d401a",
+          "name": "noteTargets",
+          "label": "Notes",
+          "type": "RELATION",
+          "isSystem": false,
+          "isNullable": true,
+          "relation": "ONE_TO_MANY noteTarget.target",
+          "settings": {
+            "relationType": "ONE_TO_MANY"
+          }
+        },
+        {
+          "id": "116d3abf-c96f-46a4-9692-9a5a838c26b4",
+          "name": "person",
+          "label": "Person",
+          "type": "RELATION",
+          "isSystem": false,
+          "isNullable": true,
+          "relation": "MANY_TO_ONE person.applications",
+          "settings": {
+            "onDelete": "SET_NULL",
+            "relationType": "MANY_TO_ONE",
+            "joinColumnName": "personId"
+          }
+        },
+        {
+          "id": "8f8b6062-52f5-466d-8394-86922094ff3a",
+          "name": "phoneMessagingConsent",
+          "label": "Phone Messaging Consent",
+          "type": "BOOLEAN",
+          "isSystem": false,
+          "isNullable": true
+        },
+        {
+          "id": "0b15a7fa-66ea-4d9c-8cea-c26b22cc990f",
+          "name": "phoneMessagingConsentAt",
+          "label": "Phone Messaging Consent At",
+          "type": "DATE_TIME",
+          "isSystem": false,
+          "isNullable": true,
+          "settings": {
+            "displayFormat": "USER_SETTINGS"
+          }
+        },
+        {
+          "id": "7977e969-ff59-4a18-8918-ea530b5bf542",
+          "name": "position",
+          "label": "Position",
+          "type": "POSITION",
+          "isSystem": true,
+          "isNullable": false
+        },
+        {
+          "id": "1716ccd1-c9f9-4cf7-9f70-3d5eb8832c02",
+          "name": "positionAppliedFor",
+          "label": "Programs Applied For",
+          "type": "MULTI_SELECT",
+          "isSystem": false,
+          "isNullable": true,
+          "options": [
+            {
+              "value": "AI_AGI_INTERN",
+              "label": "AI/AGI Intern"
+            },
+            {
+              "value": "ANIMAL_SCIENCE_AND_VETERINARY_RESEARCH_INTERN",
+              "label": "Animal Science and Veterinary Research Intern"
+            },
+            {
+              "value": "BIOMEDICAL_ENGINEERING_INTERN",
+              "label": "Biomedical Engineering Intern"
+            },
+            {
+              "value": "BUSINESS_DEVELOPMENT_AND_SALES_INTERN_AI_AND_ROBOTICS",
+              "label": "Business Development and Sales Intern (AI and Robotics)"
+            },
+            {
+              "value": "COMPUTER_VISION_ENGINEERING_INTERN",
+              "label": "Computer Vision Engineering Intern"
+            },
+            {
+              "value": "CONTENT_MARKETING_INTERN",
+              "label": "Content Marketing Intern"
+            },
+            {
+              "value": "CONTROL_SYSTEMS_ENGINEERING_INTERN",
+              "label": "Control Systems Engineering Intern"
+            },
+            {
+              "value": "DIGITAL_MARKETING_INTERN",
+              "label": "Digital Marketing Intern"
+            },
+            {
+              "value": "EDTECH_AND_INNOVATION_INTERN",
+              "label": "EdTech and Innovation Intern"
+            },
+            {
+              "value": "EMBEDDED_SYSTEMS_INTERN",
+              "label": "Embedded Systems Intern"
+            },
+            {
+              "value": "ETHICAL_AND_LEGAL_RESEARCH_INTERN",
+              "label": "Ethical and Legal Research Intern"
+            },
+            {
+              "value": "FINANCE_INTERN",
+              "label": "Finance Intern"
+            },
+            {
+              "value": "FRONT_END_DEVELOPER_INTERN",
+              "label": "Front-end Developer Intern"
+            },
+            {
+              "value": "GTM_ENGINEER_GO_TO_MARKET_ENGINEER_INTERN",
+              "label": "GTM Engineer (Go-To-Market Engineer) Intern"
+            },
+            {
+              "value": "GTM_INFLUENCER_INTERN",
+              "label": "GTM Influencer Intern"
+            },
+            {
+              "value": "HOSPITALITY_AND_TOURISM_INTERN",
+              "label": "Hospitality and Tourism Intern"
+            },
+            {
+              "value": "HUMAN_ROBOT_INTERACTION_INTERN",
+              "label": "Human-Robot Interaction Intern"
+            },
+            {
+              "value": "JOURNALISM_PR_INTERN",
+              "label": "Journalism & PR Intern"
+            },
+            {
+              "value": "MACHINE_LEARNING_ENGINEERING_INTERN",
+              "label": "Machine Learning Engineering Intern"
+            },
+            {
+              "value": "MARKETING_INTERN",
+              "label": "Marketing Intern"
+            },
+            {
+              "value": "MECHATRONICS_ENGINEERING_INTERN",
+              "label": "Mechatronics Engineering Intern"
+            },
+            {
+              "value": "NEUROSCIENCE_INTERN",
+              "label": "Neuroscience Intern"
+            },
+            {
+              "value": "OPERATIONS_INTERN",
+              "label": "Operations Intern"
+            },
+            {
+              "value": "PODCAST_PRODUCTION_INTERN_POSITION",
+              "label": "Podcast Production Intern Position"
+            },
+            {
+              "value": "PRODUCT_DEVELOPMENT_INTERN_AI_ROBOTICS",
+              "label": "Product Development Intern (AI & Robotics)"
+            },
+            {
+              "value": "PROJECT_MANAGEMENT_INTERN",
+              "label": "Project Management Intern"
+            },
+            {
+              "value": "PROMPT_ENGINEER_INTERN",
+              "label": "Prompt Engineer Intern"
+            },
+            {
+              "value": "QUALITY_ASSURANCE_INTERN",
+              "label": "Quality Assurance Intern"
+            },
+            {
+              "value": "QUANTUM_ENGINEER_INTERN",
+              "label": "Quantum Engineer Intern"
+            },
+            {
+              "value": "RESEARCH_ASSOCIATE_INTERN_OPEN_SOURCE_PROJECTS",
+              "label": "Research Associate Intern (Open-Source Projects)"
+            },
+            {
+              "value": "ROBOTICS_ENGINEERING_INTERN",
+              "label": "Robotics Engineering Intern"
+            },
+            {
+              "value": "SENSOR_INTEGRATION_INTERN",
+              "label": "Sensor Integration Intern"
+            },
+            {
+              "value": "SEO_SPECIALIST_INTERN",
+              "label": "SEO Specialist Intern"
+            },
+            {
+              "value": "SOCIAL_MEDIA_INTERN",
+              "label": "Social Media Intern"
+            },
+            {
+              "value": "SOFTWARE_DEVELOPMENT_INTERN",
+              "label": "Software Development Intern"
+            },
+            {
+              "value": "SPACE_SCIENCE_INTERN",
+              "label": "Space Science Intern"
+            },
+            {
+              "value": "SPORT_SCIENCE_INTERN",
+              "label": "Sport Science Intern"
+            },
+            {
+              "value": "TECHNICAL_WRITING_INTERN",
+              "label": "Technical Writing Intern"
+            },
+            {
+              "value": "UI_UX_DESIGN_INTERN",
+              "label": "UI/UX Design Intern"
+            },
+            {
+              "value": "BACKEND_DEVELOPER_INTERN",
+              "label": "Backend Developer Intern"
+            }
+          ]
+        },
+        {
+          "id": "501f3ac0-04c1-45f1-ab09-d530f45d5475",
+          "name": "referralName",
+          "label": "Referral Name",
+          "type": "TEXT",
+          "isSystem": false,
+          "isNullable": true,
+          "settings": {
+            "displayedMaxRows": 0
+          }
+        },
+        {
+          "id": "f4fc4773-25e3-472f-b5f3-26ea56abe43a",
+          "name": "safeSenderConfirmed",
+          "label": "Safe Sender Confirmed",
+          "type": "BOOLEAN",
+          "isSystem": false,
+          "isNullable": true
+        },
+        {
+          "id": "5cfecee5-9c59-41b9-9ed7-eae8e9b2ac96",
+          "name": "searchVector",
+          "label": "Search vector",
+          "type": "TS_VECTOR",
+          "isSystem": true,
+          "isNullable": true
+        },
+        {
+          "id": "9548984a-4720-48b5-af87-225b3c038d6e",
+          "name": "site",
+          "label": "Site",
+          "type": "RELATION",
+          "isSystem": false,
+          "isNullable": true,
+          "relation": "MANY_TO_ONE site.applications",
+          "settings": {
+            "onDelete": "SET_NULL",
+            "relationType": "MANY_TO_ONE",
+            "joinColumnName": "siteId"
+          }
+        },
+        {
+          "id": "af0dfd1a-a93b-47cb-8b8a-0a1882fceadb",
+          "name": "siteKeyReceived",
+          "label": "Site Key Received",
+          "type": "TEXT",
+          "isSystem": false,
+          "isNullable": true
+        },
+        {
+          "id": "e1f9fe42-a6d7-4077-ae4b-7f41ed01193f",
+          "name": "siteStatus",
+          "label": "Site Status",
+          "type": "SELECT",
+          "isSystem": false,
+          "isNullable": true,
+          "options": [
+            {
+              "value": "KNOWN",
+              "label": "Known"
+            },
+            {
+              "value": "MISSING",
+              "label": "Missing"
+            },
+            {
+              "value": "UNKNOWN",
+              "label": "Unknown"
+            },
+            {
+              "value": "INACTIVE",
+              "label": "Inactive"
+            }
+          ]
+        },
+        {
+          "id": "72eb2fa5-3426-4046-9e73-7afba51281c5",
+          "name": "source",
+          "label": "Source",
+          "type": "SELECT",
+          "isSystem": false,
+          "isNullable": true,
+          "options": [
+            {
+              "value": "INDEED_COM",
+              "label": "Indeed"
+            },
+            {
+              "value": "GLASSDOOR_COM",
+              "label": "Glassdoor"
+            },
+            {
+              "value": "GOOGLE_COM",
+              "label": "Google"
+            },
+            {
+              "value": "FACEBOOK_COM",
+              "label": "Facebook"
+            },
+            {
+              "value": "INSTAGRAM_COM",
+              "label": "Instagram"
+            },
+            {
+              "value": "LINKEDIN_COM",
+              "label": "LinkedIn"
+            },
+            {
+              "value": "SIMPLYHIRED_COM",
+              "label": "SimplyHired"
+            },
+            {
+              "value": "NORTHEASTERN_UNIVERSITY_S_INTERNAL_JOB_PORTAL",
+              "label": "Northeastern University's Internal Job Portal"
+            },
+            {
+              "value": "AUSTIN_COMMUNITY_COLLEGE",
+              "label": "Austin Community College"
+            },
+            {
+              "value": "TEXAS_A_M_UNIVERSITY_CORPUS_CHRISTI",
+              "label": "Texas A&M University-Corpus Christi"
+            },
+            {
+              "value": "TEXAS_A_M_UNIVERSITY_KINGSVILLE",
+              "label": "Texas A&M University-Kingsville"
+            },
+            {
+              "value": "JACKSON_COLLEGE",
+              "label": "Jackson College"
+            },
+            {
+              "value": "PURDUE_NORTHWEST",
+              "label": "Purdue Northwest"
+            },
+            {
+              "value": "CENTRAL_GEORGIA_TECHNICAL_COLLEGE",
+              "label": "Central Georgia Technical College"
+            },
+            {
+              "value": "HANDSHAKE",
+              "label": "Handshake"
+            },
+            {
+              "value": "ALABAMA_STATE_UNIVERSITY",
+              "label": "Alabama State University"
+            },
+            {
+              "value": "WORK_UA",
+              "label": "Work.ua"
+            },
+            {
+              "value": "TIKTOK",
+              "label": "TikTok"
+            },
+            {
+              "value": "REDDIT",
+              "label": "Reddit"
+            },
+            {
+              "value": "YOUTUBE",
+              "label": "YouTube"
+            },
+            {
+              "value": "X_TWITTER",
+              "label": "X (Twitter)"
+            },
+            {
+              "value": "COMPANY_WEBSITE",
+              "label": "Company Website"
+            },
+            {
+              "value": "JOB_BOARD",
+              "label": "Job Board"
+            },
+            {
+              "value": "EVENT",
+              "label": "Event"
+            },
+            {
+              "value": "REFERRAL",
+              "label": "Referral"
+            },
+            {
+              "value": "OTHER",
+              "label": "Other"
+            }
+          ]
+        },
+        {
+          "id": "4c6b1350-26a4-4584-9cce-f3b94f417b0e",
+          "name": "sourceDetail",
+          "label": "Source Detail",
+          "type": "TEXT",
+          "isSystem": false,
+          "isNullable": true,
+          "settings": {
+            "displayedMaxRows": 0
+          }
+        },
+        {
+          "id": "47f45aec-71b9-4ec2-87ba-95ec3e978232",
+          "name": "sourceFormId",
+          "label": "Source Form ID",
+          "type": "TEXT",
+          "isSystem": false,
+          "isNullable": true,
+          "settings": {
+            "displayedMaxRows": 0
+          }
+        },
+        {
+          "id": "e1fd1843-ca3c-4b38-8c79-c46b34483170",
+          "name": "submissionKey",
+          "label": "Submission Key",
+          "type": "TEXT",
+          "isSystem": false,
+          "isNullable": true
+        },
+        {
+          "id": "0f47b42e-1473-47e5-9582-e602fa6c1034",
+          "name": "submittedAt",
+          "label": "Submitted At",
+          "type": "DATE_TIME",
+          "isSystem": false,
+          "isNullable": true,
+          "settings": {
+            "displayFormat": "USER_SETTINGS"
+          }
+        },
+        {
+          "id": "8ca87fec-fa09-4e68-af23-d72dd6c152e1",
+          "name": "taskTargets",
+          "label": "Tasks",
+          "type": "RELATION",
+          "isSystem": false,
+          "isNullable": true,
+          "relation": "ONE_TO_MANY taskTarget.target",
+          "settings": {
+            "relationType": "ONE_TO_MANY"
+          }
+        },
+        {
+          "id": "2418c376-231b-4e0a-bb1b-80102b2d40ea",
+          "name": "timelineActivities",
+          "label": "Timeline Activities",
+          "type": "RELATION",
+          "isSystem": false,
+          "isNullable": true,
+          "relation": "ONE_TO_MANY timelineActivity.target",
+          "settings": {
+            "relationType": "ONE_TO_MANY"
+          }
+        },
+        {
+          "id": "e0b9d058-efb1-4bf6-98a4-57c163bfb768",
+          "name": "updatedAt",
+          "label": "Last update",
+          "type": "DATE_TIME",
+          "isSystem": true,
+          "isNullable": false
+        },
+        {
+          "id": "5d6577b2-2dbd-4e57-b3a2-5f2afe40e389",
+          "name": "updatedBy",
+          "label": "Updated by",
+          "type": "ACTOR",
+          "isSystem": true,
+          "isNullable": false
+        }
+      ]
+    },
+    "person": {
+      "id": "af16955b-8bb2-4258-b776-08fae76a0dad",
+      "namePlural": "people",
+      "label": "Person",
+      "fields": [
+        {
+          "id": "b13330e1-ddad-42a7-890e-35bf3f3c0f3c",
+          "name": "agentChatThreadTargets",
+          "label": "Chats",
+          "type": "RELATION",
+          "isSystem": false,
+          "isNullable": true,
+          "relation": "ONE_TO_MANY agentChatThreadTarget.target",
+          "settings": {
+            "relationType": "ONE_TO_MANY"
+          }
+        },
+        {
+          "id": "6a492871-9b5c-4133-9ac8-c55ec6571649",
+          "name": "applications",
+          "label": "Applications",
+          "type": "RELATION",
+          "isSystem": false,
+          "isNullable": true,
+          "relation": "ONE_TO_MANY application.person",
+          "settings": {
+            "relationType": "ONE_TO_MANY"
+          }
+        },
+        {
+          "id": "5f0675f7-538e-4ad0-96d9-582c2e44403e",
+          "name": "attachments",
+          "label": "Attachments",
+          "type": "RELATION",
+          "isSystem": false,
+          "isNullable": true,
+          "relation": "ONE_TO_MANY attachment.target",
+          "settings": {
+            "relationType": "ONE_TO_MANY"
+          }
+        },
+        {
+          "id": "fa064f0f-ecbe-49ed-a6a7-2437efc3e505",
+          "name": "avatarFile",
+          "label": "Avatar File",
+          "type": "FILES",
+          "isSystem": true,
+          "isNullable": true,
+          "settings": {
+            "maxNumberOfValues": 1
+          }
+        },
+        {
+          "id": "c9252d6f-54bc-4b6c-bf28-ca23c76d7930",
+          "name": "avatarUrl",
+          "label": "Avatar",
+          "type": "TEXT",
+          "isSystem": true,
+          "isNullable": true
+        },
+        {
+          "id": "5b73955f-da82-423b-9528-c9a0a52dc62d",
+          "name": "calendarEventParticipants",
+          "label": "Calendar Event Participants",
+          "type": "RELATION",
+          "isSystem": false,
+          "isNullable": true,
+          "relation": "ONE_TO_MANY calendarEventParticipant.person",
+          "settings": {
+            "relationType": "ONE_TO_MANY"
+          }
+        },
+        {
+          "id": "c05ea740-2610-486c-8817-3d328b521578",
+          "name": "calendarEventTargets",
+          "label": "Calendar events",
+          "type": "RELATION",
+          "isSystem": false,
+          "isNullable": true,
+          "relation": "ONE_TO_MANY calendarEventTarget.target",
+          "settings": {
+            "relationType": "ONE_TO_MANY"
+          }
+        },
+        {
+          "id": "f45a9f30-872a-4c59-b218-ad079c2ff8ed",
+          "name": "communicationConsent",
+          "label": "Communication Consent",
+          "type": "BOOLEAN",
+          "isSystem": false,
+          "isNullable": true
+        },
+        {
+          "id": "b7119828-05c9-40d5-bf2f-31fb3f2abd53",
+          "name": "communicationConsentAt",
+          "label": "Communication Consent At",
+          "type": "DATE_TIME",
+          "isSystem": false,
+          "isNullable": true
+        },
+        {
+          "id": "8eeb20e8-f0a8-4de7-b909-fcf911dc4f5f",
+          "name": "communicationConsentSite",
+          "label": "Communication Consent Site",
+          "type": "TEXT",
+          "isSystem": false,
+          "isNullable": true
+        },
+        {
+          "id": "a7fdb105-70da-439d-884f-62ee0b1ac6e7",
+          "name": "company",
+          "label": "Company",
+          "type": "RELATION",
+          "isSystem": false,
+          "isNullable": true,
+          "relation": "MANY_TO_ONE company.people",
+          "settings": {
+            "onDelete": "SET_NULL",
+            "relationType": "MANY_TO_ONE",
+            "joinColumnName": "companyId"
+          }
+        },
+        {
+          "id": "265820ad-efff-42a6-9c28-b59b5fb6dd96",
+          "name": "consentVersion",
+          "label": "Consent Version",
+          "type": "TEXT",
+          "isSystem": false,
+          "isNullable": true
+        },
+        {
+          "id": "38a7f86f-abea-42ee-a687-a93852f1a6f4",
+          "name": "createdAt",
+          "label": "Creation date",
+          "type": "DATE_TIME",
+          "isSystem": true,
+          "isNullable": false,
+          "settings": {
+            "displayFormat": "RELATIVE"
+          }
+        },
+        {
+          "id": "1429241b-bca5-4b6b-bae6-12588bce5afd",
+          "name": "createdBy",
+          "label": "Created by",
+          "type": "ACTOR",
+          "isSystem": true,
+          "isNullable": false
+        },
+        {
+          "id": "a066ba2f-f748-457b-b1ab-8fad75644737",
+          "name": "deletedAt",
+          "label": "Deleted at",
+          "type": "DATE_TIME",
+          "isSystem": true,
+          "isNullable": true,
+          "settings": {
+            "displayFormat": "RELATIVE"
+          }
+        },
+        {
+          "id": "60a71e63-0688-4f0c-a020-a0b53c8178c9",
+          "name": "education",
+          "label": "Education",
+          "type": "TEXT",
+          "isSystem": false,
+          "isNullable": true,
+          "settings": {
+            "displayedMaxRows": 0
+          }
+        },
+        {
+          "id": "d9652ecb-fc00-4069-8948-3db823885bc7",
+          "name": "emails",
+          "label": "Emails",
+          "type": "EMAILS",
+          "isSystem": false,
+          "isNullable": true,
+          "settings": {
+            "maxNumberOfValues": 1
+          }
+        },
+        {
+          "id": "04da8acf-a1b6-4484-834f-a4a26f8d1369",
+          "name": "id",
+          "label": "ID",
+          "type": "UUID",
+          "isSystem": true,
+          "isNullable": false
+        },
+        {
+          "id": "0d23cd35-8c02-41e5-bb2d-701041a741ab",
+          "name": "inquiries",
+          "label": "Inquiries",
+          "type": "RELATION",
+          "isSystem": false,
+          "isNullable": true,
+          "relation": "ONE_TO_MANY inquiry.person",
+          "settings": {
+            "relationType": "ONE_TO_MANY"
+          }
+        },
+        {
+          "id": "3251b2d0-dce0-42d4-a59e-3ac0c5c73d13",
+          "name": "jobTitle",
+          "label": "Job Title",
+          "type": "TEXT",
+          "isSystem": false,
+          "isNullable": true
+        },
+        {
+          "id": "e4a2b6af-f606-4c3a-b3b2-e1543a6281ba",
+          "name": "legacyHubspotId",
+          "label": "Legacy Hubspot ID",
+          "type": "TEXT",
+          "isSystem": false,
+          "isNullable": true,
+          "settings": {
+            "displayedMaxRows": 0
+          }
+        },
+        {
+          "id": "c14ca3f7-a6d1-458d-88df-ba478871a92b",
+          "name": "linkedinLink",
+          "label": "Linkedin",
+          "type": "LINKS",
+          "isSystem": false,
+          "isNullable": true
+        },
+        {
+          "id": "fb5ef0bb-adf9-48b0-a2ce-379976940a12",
+          "name": "listMemberships",
+          "label": "Lists",
+          "type": "RELATION",
+          "isSystem": false,
+          "isNullable": true,
+          "relation": "ONE_TO_MANY messageListMember.person",
+          "settings": {
+            "relationType": "ONE_TO_MANY",
+            "junctionTargetFieldId": "4771d2c9-dd65-4f08-8d80-ace6e37cc6aa"
+          }
+        },
+        {
+          "id": "51afe7db-c5e6-467a-907d-6489c69e8723",
+          "name": "location",
+          "label": "Location",
+          "type": "ADDRESS",
+          "isSystem": false,
+          "isNullable": true,
+          "settings": {
+            "subFields": [
+              "addressStreet1",
+              "addressStreet2",
+              "addressCity",
+              "addressState",
+              "addressPostcode",
+              "addressCountry"
+            ]
+          }
+        },
+        {
+          "id": "42e6fc79-52e2-4504-b985-29736a85c1c1",
+          "name": "messageParticipants",
+          "label": "Message Participants",
+          "type": "RELATION",
+          "isSystem": false,
+          "isNullable": true,
+          "relation": "ONE_TO_MANY messageParticipant.person",
+          "settings": {
+            "relationType": "ONE_TO_MANY"
+          }
+        },
+        {
+          "id": "5836f201-6100-4dad-b593-edfb29c687eb",
+          "name": "messageThreadTargets",
+          "label": "Emails",
+          "type": "RELATION",
+          "isSystem": false,
+          "isNullable": true,
+          "relation": "ONE_TO_MANY messageThreadTarget.target",
+          "settings": {
+            "relationType": "ONE_TO_MANY"
+          }
+        },
+        {
+          "id": "9282a2ed-c692-4352-b0c6-c444b6139e17",
+          "name": "name",
+          "label": "Name",
+          "type": "FULL_NAME",
+          "isSystem": false,
+          "isNullable": true
+        },
+        {
+          "id": "a34e14d8-1e99-468e-af65-51d766d880a6",
+          "name": "noteTargets",
+          "label": "Notes",
+          "type": "RELATION",
+          "isSystem": false,
+          "isNullable": true,
+          "relation": "ONE_TO_MANY noteTarget.target",
+          "settings": {
+            "relationType": "ONE_TO_MANY"
+          }
+        },
+        {
+          "id": "abd783d4-3f10-46f5-99ef-8e696dea7b99",
+          "name": "phones",
+          "label": "Phones",
+          "type": "PHONES",
+          "isSystem": false,
+          "isNullable": true,
+          "settings": {
+            "maxNumberOfValues": 1
+          }
+        },
+        {
+          "id": "5d3f16fb-a1e9-43e9-bd9b-f25b61337142",
+          "name": "pointOfContactForOpportunities",
+          "label": "Opportunities",
+          "type": "RELATION",
+          "isSystem": false,
+          "isNullable": true,
+          "relation": "ONE_TO_MANY opportunity.pointOfContact",
+          "settings": {
+            "relationType": "ONE_TO_MANY"
+          }
+        },
+        {
+          "id": "437450ec-6550-4b7e-8709-9e512482f508",
+          "name": "position",
+          "label": "Position",
+          "type": "POSITION",
+          "isSystem": true,
+          "isNullable": false
+        },
+        {
+          "id": "db7bb10f-f45f-468b-a3d2-c38c2baa9107",
+          "name": "searchVector",
+          "label": "Search vector",
+          "type": "TS_VECTOR",
+          "isSystem": true,
+          "isNullable": true
+        },
+        {
+          "id": "225cf341-37e8-4125-9ba2-09c12f4e6d5e",
+          "name": "taskTargets",
+          "label": "Tasks",
+          "type": "RELATION",
+          "isSystem": false,
+          "isNullable": true,
+          "relation": "ONE_TO_MANY taskTarget.target",
+          "settings": {
+            "relationType": "ONE_TO_MANY"
+          }
+        },
+        {
+          "id": "89e5342b-bc1e-4269-8139-6993a9489ecb",
+          "name": "timelineActivities",
+          "label": "Events",
+          "type": "RELATION",
+          "isSystem": false,
+          "isNullable": true,
+          "relation": "ONE_TO_MANY timelineActivity.target",
+          "settings": {
+            "relationType": "ONE_TO_MANY"
+          }
+        },
+        {
+          "id": "85f1abd2-44c5-4bb0-b216-f6bfd69b255e",
+          "name": "updatedAt",
+          "label": "Last update",
+          "type": "DATE_TIME",
+          "isSystem": true,
+          "isNullable": false,
+          "settings": {
+            "displayFormat": "RELATIVE"
+          }
+        },
+        {
+          "id": "ab438ab1-f88b-4feb-8153-46ddd5253971",
+          "name": "updatedBy",
+          "label": "Updated by",
+          "type": "ACTOR",
+          "isSystem": true,
+          "isNullable": false
+        }
+      ]
+    },
+    "inquiry": {
+      "id": "4c3e95a3-0373-4f1f-91b1-55e7845cf78c",
+      "namePlural": "inquiries",
+      "label": "Inquiry",
+      "fields": [
+        {
+          "id": "0b3096a2-957d-4f59-94a3-b62a8a35e270",
+          "name": "agentChatThreadTargets",
+          "label": "Chats",
+          "type": "RELATION",
+          "isSystem": false,
+          "isNullable": true,
+          "relation": "ONE_TO_MANY agentChatThreadTarget.target",
+          "settings": {
+            "relationType": "ONE_TO_MANY"
+          }
+        },
+        {
+          "id": "982a6e30-067f-493e-9b8a-a4d23a7344f4",
+          "name": "attachments",
+          "label": "Attachments",
+          "type": "RELATION",
+          "isSystem": false,
+          "isNullable": true,
+          "relation": "ONE_TO_MANY attachment.target",
+          "settings": {
+            "relationType": "ONE_TO_MANY"
+          }
+        },
+        {
+          "id": "ed89f3aa-7293-4c5d-a87c-660408fbe7e0",
+          "name": "createdAt",
+          "label": "Creation date",
+          "type": "DATE_TIME",
+          "isSystem": true,
+          "isNullable": false
+        },
+        {
+          "id": "688b77b0-03ef-420a-9b38-cc934f5098c2",
+          "name": "createdBy",
+          "label": "Created by",
+          "type": "ACTOR",
+          "isSystem": true,
+          "isNullable": false
+        },
+        {
+          "id": "524db828-4b81-44fe-a6aa-dbcdfcda3ec7",
+          "name": "deletedAt",
+          "label": "Deleted at",
+          "type": "DATE_TIME",
+          "isSystem": true,
+          "isNullable": true
+        },
+        {
+          "id": "20573520-de99-4f1f-bb80-c30eaedc38a3",
+          "name": "id",
+          "label": "ID",
+          "type": "UUID",
+          "isSystem": true,
+          "isNullable": false
+        },
+        {
+          "id": "13bacffe-5b0f-4f7f-be71-a7648c36f7f1",
+          "name": "message",
+          "label": "Message",
+          "type": "TEXT",
+          "isSystem": false,
+          "isNullable": true
+        },
+        {
+          "id": "994ca2dd-c9ad-42ae-b2fd-a91d9d34dffd",
+          "name": "name",
+          "label": "Name",
+          "type": "TEXT",
+          "isSystem": false,
+          "isNullable": true
+        },
+        {
+          "id": "f447687a-97c2-4344-9ab9-dcd68b77bd6a",
+          "name": "noteTargets",
+          "label": "Notes",
+          "type": "RELATION",
+          "isSystem": false,
+          "isNullable": true,
+          "relation": "ONE_TO_MANY noteTarget.target",
+          "settings": {
+            "relationType": "ONE_TO_MANY"
+          }
+        },
+        {
+          "id": "614fa45f-ca7c-40c8-a9b3-d91c28eec5f0",
+          "name": "person",
+          "label": "Person",
+          "type": "RELATION",
+          "isSystem": false,
+          "isNullable": true,
+          "relation": "MANY_TO_ONE person.inquiries",
+          "settings": {
+            "onDelete": "SET_NULL",
+            "relationType": "MANY_TO_ONE",
+            "joinColumnName": "personId"
+          }
+        },
+        {
+          "id": "c1b77d40-936b-4b40-a1a9-5a40e0237d0b",
+          "name": "position",
+          "label": "Position",
+          "type": "POSITION",
+          "isSystem": true,
+          "isNullable": false
+        },
+        {
+          "id": "d9437f86-8138-4b6b-b697-f737c9f0e19f",
+          "name": "searchVector",
+          "label": "Search vector",
+          "type": "TS_VECTOR",
+          "isSystem": true,
+          "isNullable": true
+        },
+        {
+          "id": "c78f6979-0d8a-4788-acbe-09666fa2a726",
+          "name": "site",
+          "label": "Site",
+          "type": "RELATION",
+          "isSystem": false,
+          "isNullable": true,
+          "relation": "MANY_TO_ONE site.inquiries",
+          "settings": {
+            "onDelete": "SET_NULL",
+            "relationType": "MANY_TO_ONE",
+            "joinColumnName": "siteId"
+          }
+        },
+        {
+          "id": "ecc867b4-0d9f-4f48-b898-786c897d9fb2",
+          "name": "siteKeyReceived",
+          "label": "Site Key Received",
+          "type": "TEXT",
+          "isSystem": false,
+          "isNullable": true
+        },
+        {
+          "id": "69f433c9-1874-4f02-9a88-d2694a44aba6",
+          "name": "siteStatus",
+          "label": "Site Status",
+          "type": "SELECT",
+          "isSystem": false,
+          "isNullable": true,
+          "options": [
+            {
+              "value": "KNOWN",
+              "label": "Known"
+            },
+            {
+              "value": "MISSING",
+              "label": "Missing"
+            },
+            {
+              "value": "UNKNOWN",
+              "label": "Unknown"
+            },
+            {
+              "value": "INACTIVE",
+              "label": "Inactive"
+            }
+          ]
+        },
+        {
+          "id": "bf1fbd3f-6215-4405-a8dc-97857f882ac9",
+          "name": "status",
+          "label": "Status",
+          "type": "SELECT",
+          "isSystem": false,
+          "isNullable": true,
+          "options": [
+            {
+              "value": "NEW",
+              "label": "New"
+            },
+            {
+              "value": "IN_PROGRESS",
+              "label": "In progress"
+            },
+            {
+              "value": "CLOSED",
+              "label": "Closed"
+            }
+          ]
+        },
+        {
+          "id": "dafc2fd8-d32f-4e6e-8e6b-feb8a713af24",
+          "name": "subject",
+          "label": "Subject",
+          "type": "TEXT",
+          "isSystem": false,
+          "isNullable": true
+        },
+        {
+          "id": "3d94190f-6c9a-4d7a-bd25-fda67d9080d7",
+          "name": "submissionKey",
+          "label": "Submission Key",
+          "type": "TEXT",
+          "isSystem": false,
+          "isNullable": true
+        },
+        {
+          "id": "700cb52a-fb7e-4367-ba0c-700b6a8d345e",
+          "name": "submittedAt",
+          "label": "Submitted At",
+          "type": "DATE_TIME",
+          "isSystem": false,
+          "isNullable": true
+        },
+        {
+          "id": "dda9b6a5-3bd0-4df6-8ebc-dd0bb444a5ff",
+          "name": "taskTargets",
+          "label": "Tasks",
+          "type": "RELATION",
+          "isSystem": false,
+          "isNullable": true,
+          "relation": "ONE_TO_MANY taskTarget.target",
+          "settings": {
+            "relationType": "ONE_TO_MANY"
+          }
+        },
+        {
+          "id": "a760cf55-9d06-4451-b283-83ec56a6b89c",
+          "name": "timelineActivities",
+          "label": "Timeline Activities",
+          "type": "RELATION",
+          "isSystem": false,
+          "isNullable": true,
+          "relation": "ONE_TO_MANY timelineActivity.target",
+          "settings": {
+            "relationType": "ONE_TO_MANY"
+          }
+        },
+        {
+          "id": "c4d3e0e9-b129-4fe8-a3c1-dd8a876b1d24",
+          "name": "updatedAt",
+          "label": "Last update",
+          "type": "DATE_TIME",
+          "isSystem": true,
+          "isNullable": false
+        },
+        {
+          "id": "21576139-870f-4066-9a4b-85cfea0c89c9",
+          "name": "updatedBy",
+          "label": "Updated by",
+          "type": "ACTOR",
+          "isSystem": true,
+          "isNullable": false
+        }
+      ]
+    },
+    "attachment": {
+      "id": "2bb346fa-6ce5-473a-9f01-66d047b0e5d0",
+      "namePlural": "attachments",
+      "label": "Attachment",
+      "fields": [
+        {
+          "id": "af12d135-d9c6-49f9-b726-418b457a524f",
+          "name": "createdAt",
+          "label": "Creation date",
+          "type": "DATE_TIME",
+          "isSystem": true,
+          "isNullable": false,
+          "settings": {
+            "displayFormat": "RELATIVE"
+          }
+        },
+        {
+          "id": "9420c9c6-3d88-4382-8b27-e170a25ecd27",
+          "name": "createdBy",
+          "label": "Created by",
+          "type": "ACTOR",
+          "isSystem": true,
+          "isNullable": false
+        },
+        {
+          "id": "394fb44e-8290-4670-bf50-84cb8ff06246",
+          "name": "deletedAt",
+          "label": "Deleted at",
+          "type": "DATE_TIME",
+          "isSystem": true,
+          "isNullable": true,
+          "settings": {
+            "displayFormat": "RELATIVE"
+          }
+        },
+        {
+          "id": "6cc08935-0cdd-4b91-8409-df60978592b7",
+          "name": "file",
+          "label": "File",
+          "type": "FILES",
+          "isSystem": false,
+          "isNullable": true,
+          "settings": {
+            "maxNumberOfValues": 1
+          }
+        },
+        {
+          "id": "3bda8a00-1a5e-4dd1-a356-959b563d43b5",
+          "name": "fileCategory",
+          "label": "File category",
+          "type": "SELECT",
+          "isSystem": true,
+          "isNullable": false,
+          "options": [
+            {
+              "value": "ARCHIVE",
+              "label": "Archive"
+            },
+            {
+              "value": "AUDIO",
+              "label": "Audio"
+            },
+            {
+              "value": "IMAGE",
+              "label": "Image"
+            },
+            {
+              "value": "PRESENTATION",
+              "label": "Presentation"
+            },
+            {
+              "value": "SPREADSHEET",
+              "label": "Spreadsheet"
+            },
+            {
+              "value": "TEXT_DOCUMENT",
+              "label": "Text Document"
+            },
+            {
+              "value": "VIDEO",
+              "label": "Video"
+            },
+            {
+              "value": "OTHER",
+              "label": "Other"
+            }
+          ]
+        },
+        {
+          "id": "22ccd466-262d-42e8-aff0-b204c715aecc",
+          "name": "fullPath",
+          "label": "Full path",
+          "type": "TEXT",
+          "isSystem": true,
+          "isNullable": true
+        },
+        {
+          "id": "fa9fd32e-6193-4193-ac6f-e9afc93d9fb3",
+          "name": "id",
+          "label": "ID",
+          "type": "UUID",
+          "isSystem": true,
+          "isNullable": false
+        },
+        {
+          "id": "638b2edc-08fd-49e0-ab93-7ff9f61505da",
+          "name": "name",
+          "label": "Name",
+          "type": "TEXT",
+          "isSystem": false,
+          "isNullable": true
+        },
+        {
+          "id": "e34c20a7-2137-4011-9425-3154bda74066",
+          "name": "position",
+          "label": "Position",
+          "type": "POSITION",
+          "isSystem": true,
+          "isNullable": false
+        },
+        {
+          "id": "f26cf2ac-f758-4d9d-806e-b23e9c23cf89",
+          "name": "searchVector",
+          "label": "Search vector",
+          "type": "TS_VECTOR",
+          "isSystem": true,
+          "isNullable": true
+        },
+        {
+          "id": "aafd67d9-f299-476a-8cdc-5da843253ddd",
+          "name": "target",
+          "label": "Related to",
+          "type": "MORPH_RELATION",
+          "isSystem": false,
+          "isNullable": true,
+          "settings": {
+            "relationType": "MANY_TO_ONE"
+          }
+        },
+        {
+          "id": "6b57591d-25f2-47ab-9c66-659c9c549325",
+          "name": "updatedAt",
+          "label": "Last update",
+          "type": "DATE_TIME",
+          "isSystem": true,
+          "isNullable": false,
+          "settings": {
+            "displayFormat": "RELATIVE"
+          }
+        },
+        {
+          "id": "c44baed0-d6b6-4a48-98dd-7c8986bf7454",
+          "name": "updatedBy",
+          "label": "Updated by",
+          "type": "ACTOR",
+          "isSystem": true,
+          "isNullable": false
+        }
+      ]
+    }
+  },
+  "sites": [
+    {
+      "id": "136a52fe-250d-40b3-b94f-43b9d05c178a",
+      "name": "Flo Studios",
+      "siteId": "flo_studios",
+      "hostname": "www.flostudios.ai",
+      "active": true
+    },
+    {
+      "id": "1bf1758e-36b9-4e7c-88c2-d315744459b0",
+      "name": "Flomad Travel",
+      "siteId": "flomad_travel",
+      "hostname": "www.flomadtravel.com",
+      "active": true
+    },
+    {
+      "id": "1ed21c2c-f7ec-4343-a965-425d03568069",
+      "name": "Flomad",
+      "siteId": "flomad",
+      "hostname": "www.flomad.com",
+      "active": false
+    },
+    {
+      "id": "4fbfaae6-c3b7-4dc1-9de7-32c91d65ef5c",
+      "name": "TARRL",
+      "siteId": "tarrl",
+      "hostname": "www.tarrl.org",
+      "active": true
+    },
+    {
+      "id": "5cbfa225-5e5e-4d8d-8676-c5e4a8ff3a86",
+      "name": "CAIPO",
+      "siteId": "caipo",
+      "hostname": "www.caipo.ai",
+      "active": true
+    },
+    {
+      "id": "5ed5b8db-1958-4617-9942-2d45fb908a98",
+      "name": "Bootcamp University",
+      "siteId": "bootcamp_university",
+      "hostname": "www.bootcampuniversity.org",
+      "active": true
+    },
+    {
+      "id": "68dc7d9c-1d22-446d-bce9-b668f6e86990",
+      "name": "Hephaestus International",
+      "siteId": "hephaestus_international",
+      "hostname": "www.hephaestus.international",
+      "active": true
+    },
+    {
+      "id": "71ef0476-0540-4229-800f-74c86fc266b5",
+      "name": "FloBrain",
+      "siteId": "flobrain",
+      "hostname": "www.flobrain.ai",
+      "active": true
+    },
+    {
+      "id": "77bd7aa8-c574-4bf9-96c2-4b8b0c712c4c",
+      "name": "Space Ventures Institute",
+      "siteId": "space_ventures_institute",
+      "hostname": "www.spaceventuresinstitute.com",
+      "active": true
+    },
+    {
+      "id": "865f923f-ad6b-415b-a895-da476a749da4",
+      "name": "Cosmos Intelligence",
+      "siteId": "cosmos_intelligence",
+      "hostname": "www.cosmosintelligence.org",
+      "active": true
+    },
+    {
+      "id": "97d16c63-27aa-48a4-b26a-9e2f0729238b",
+      "name": "Moodchanger",
+      "siteId": "moodchanger",
+      "hostname": "www.moodchanger.ai",
+      "active": true
+    },
+    {
+      "id": "be6cc5b2-2405-490d-9471-77a37a861c7a",
+      "name": "FloLabs Innovations Group",
+      "siteId": "flolabs_innovations_group",
+      "hostname": "www.flolabsinnovations.com",
+      "active": true
+    },
+    {
+      "id": "c87adcc9-1edd-4a4e-af19-1ee6f8fc80d5",
+      "name": "Robocollective",
+      "siteId": "robocollective",
+      "hostname": "www.robocollective.ai",
+      "active": true
+    },
+    {
+      "id": "da57350e-bedc-4f4a-9d03-5806065f6b8f",
+      "name": "Legal Ethics Ventures Institute",
+      "siteId": "legal_ethics_ventures_institute",
+      "hostname": "www.legalethicsventuresinstitute.com",
+      "active": true
+    },
+    {
+      "id": "dd1ed9f3-b482-4935-993d-54c9fdadc1bc",
+      "name": "Athletic Performance Intelligence",
+      "siteId": "athletic_performance_intelligence",
+      "hostname": "www.athleticperformanceintelligence.com",
+      "active": true
+    },
+    {
+      "id": "f39c8196-db3d-41ee-bc58-abfecf43933d",
+      "name": "FloLabs International",
+      "siteId": "flolabs_international",
+      "hostname": "www.flolabs.international",
+      "active": true
+    }
+  ],
+  "counts": {
+    "people": 6,
+    "applications": 3,
+    "attachments": 0
+  },
+  "uploadMutations": [
+    "createFileUpload",
+    "completeFileUpload"
+  ]
+}

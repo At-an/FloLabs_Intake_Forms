@@ -22,7 +22,7 @@ const nextConfig: NextConfig = {
         ],
       },
       {
-        // Embed pages: only allow-listed FloLabs websites may frame them (CLAUDE.md section 5).
+        // Embed pages: any HTTPS website may frame them (decided 2026-10-24, src/shared/config/sites.ts).
         source: '/embed/:form*',
         headers: [...baseHeaders, { key: 'Content-Security-Policy', value: `frame-ancestors ${embedFrameAncestors(development)}` }],
       },

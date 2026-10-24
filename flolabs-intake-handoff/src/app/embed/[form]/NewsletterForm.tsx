@@ -11,7 +11,7 @@ import { Turnstile } from '../../_components/Turnstile';
 
 const GENERIC_ERROR = 'Something went wrong. Please try again later.';
 
-export function NewsletterForm({ siteKey, turnstileSiteKey }: { siteKey: string; turnstileSiteKey: string }) {
+export function NewsletterForm({ siteKey, turnstileSiteKey }: { siteKey?: string; turnstileSiteKey: string }) {
   const idPrefix = useId();
   const emailId = `${idPrefix}-email`;
   const [email, setEmail] = useState('');

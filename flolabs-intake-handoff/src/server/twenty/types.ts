@@ -84,5 +84,8 @@ export type InquiryInput = {
   submittedAt: string;
   submissionKey: string;
   personId: string;
-  siteId: string;
+  /** Set for KNOWN and INACTIVE; left empty for MISSING and UNKNOWN. */
+  siteId?: string;
+  siteStatus: SiteStatus;
+  siteKeyReceived?: string;
 };

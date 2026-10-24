@@ -17,7 +17,7 @@ const { limits } = CONTACT_US_FORM;
 const GENERIC_ERROR = 'Something went wrong. Please try again later.';
 const TURNSTILE_MESSAGE = 'Please complete the security check.';
 
-export function ContactUsForm({ siteKey, turnstileSiteKey }: { siteKey: string; turnstileSiteKey: string }) {
+export function ContactUsForm({ siteKey, turnstileSiteKey }: { siteKey?: string; turnstileSiteKey: string }) {
   const idPrefix = useId();
   const id = (key: string) => `${idPrefix}-${key}`;
   const [values, setValues] = useState<Values>({ firstName: '', lastName: '', email: '', subject: '', message: '' });

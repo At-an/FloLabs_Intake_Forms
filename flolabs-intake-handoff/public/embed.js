@@ -1,7 +1,8 @@
 /*!
- * FloLabs forms loader (Contact Us, Newsletter).
+ * FloLabs forms loader (Application, Contact Us, Newsletter).
  * Usage on a FloLabs website:
- *   <div data-flolabs-form="contact-us" data-site="robocollective"></div>
+ *   <div data-flolabs-form="application" data-site="robocollective"></div>
+ *   (or data-flolabs-form="contact-us" / "newsletter")
  *   <script src="https://forms.flolabsinnovations.com/embed.js" async></script>
  * Turns each placeholder into an auto-resizing iframe. Only height messages from the
  * forms origin are accepted.
@@ -14,6 +15,7 @@
   var origin = new URL(script.src).origin;
 
   var FORMS = {
+    application: { title: 'Apply to a FloLabs program', minHeight: 1600 },
     'contact-us': { title: 'Contact FloLabs', minHeight: 640 },
     newsletter: { title: 'FloLabs newsletter', minHeight: 200 },
   };

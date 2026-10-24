@@ -16,8 +16,10 @@ export default async function EmbedTestPage({ searchParams }: Props) {
     <main className={styles.page}>
       <h1>Embed test (development only)</h1>
       <p className={styles.lead}>
-        Site key: <code>{site}</code>. Try <code>?site=flomad</code> (inactive) or <code>?site=nope</code> (unknown).
+        Site key: <code>{site}</code>. Try <code>?site=flomad</code> (inactive) or <code>?site=nope</code> (unknown): the forms still show, and the submission is marked accordingly.
       </p>
+      <h2>Application</h2>
+      <div data-flolabs-form="application" data-site={site} />
       <h2>Contact Us</h2>
       <div data-flolabs-form="contact-us" data-site={site} />
       <h2>Newsletter</h2>

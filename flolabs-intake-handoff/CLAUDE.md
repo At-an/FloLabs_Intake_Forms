@@ -41,20 +41,22 @@ Plus a Contact Us form and a Newsletter widget for FloLabs websites.
 ## 5. Forms and links (13 forms + 1 widget)
 | Form | Delivery | Versions |
 |---|---|---|
-| Application | public hosted link `/apply?site=<site_id>` (shared during recruitment) | 1 |
-| Contact Us | iframe embed on FloLabs sites | 1 |
-| Newsletter (widget, email only) | iframe embed on FloLabs sites | 1 |
+| Application | iframe embed in a section of any FloLabs website, and hosted link `/apply?site=<site_id>` | 1 |
+| Contact Us | iframe embed in a section of any FloLabs website | 1 |
+| Newsletter (widget, email only) | iframe embed in a section of any FloLabs website | 1 |
 | Form 1 Contacted | hosted link `/contacted?t=<token>` | 5 track versions, merged when positions span tracks |
 | Form 2 Before Meeting | hosted link `/before-meeting?t=<token>` | 5 track versions, merged likewise |
 | Form 3 Masterclass | hosted link `/masterclass?t=<token>` | 1 |
 
-**Embeds (Contact Us and Newsletter only).** One loader `embed.js` + one `/embed/[form]` route:
-`<div data-flolabs-form="contact-us" data-site="robocollective"></div><script src="https://forms.<domain>/embed.js" async></script>`
-- The loader injects an auto-resizing iframe.
-- CSP `frame-ancestors` is an allow-list of FloLabs domains.
-- `data-site` is validated against an allow-list and resolved to a Twenty Site server-side.
+**Embeds (Application, Contact Us, Newsletter; decided 2026-10-24).** One loader `embed.js` + one `/embed/[form]` route. A website places a `<div>` where the form should appear:
+`<div data-flolabs-form="application" data-site="robocollective"></div><script src="https://forms.<domain>/embed.js" async></script>` (`contact-us`, `newsletter` likewise)
+- The loader turns the div into an auto-resizing iframe (a section of the page, not a whole page).
+- CSP `frame-ancestors https:`: **any HTTPS website** may embed the forms, so current and future FloLabs websites work without a code change. All other pages (e.g. `/apply`) cannot be framed.
+- `data-site` is never refused: every submission records and marks it with the site rule below.
 
-**Application link.** Public, no token. `?site=<site_id>` attributes the Application to a Site; validated server-side against the active Sites (approved 2026-10-24): active -> Site linked, `siteStatus` KNOWN; missing -> Site empty, MISSING; unknown -> Site empty, UNKNOWN; inactive -> that Site linked, INACTIVE. The key as received is kept in `siteKeyReceived`. The applicant never chooses the Site. The POC uses `flolabs_international`.
+**Site rule (all forms, approved 2026-10-24, `src/server/sites.ts`).** The site key (`data-site` or `?site=`) is resolved server-side: active -> Site linked, `siteStatus` KNOWN; missing -> Site empty, MISSING; unknown (e.g. a future website not yet in Twenty) -> Site empty, UNKNOWN; inactive -> that Site linked, INACTIVE. The key as received is kept in `siteKeyReceived` (Application, Inquiry) or `communicationConsentSite` (Newsletter, on Person). The visitor never chooses the Site.
+
+**Application link.** `/apply?site=<site_id>`, public, no token, same site rule.
 
 **Sites.** All 16 FloLabs Sites exist in Twenty (`scripts/t2-sites.mjs`, ids in `docs/twenty-schema.md`). `flomad` is inactive (expired certificate, site down).
 

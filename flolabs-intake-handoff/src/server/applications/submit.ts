@@ -5,7 +5,8 @@ import type { TwentyClient } from '../twenty/client';
 import { FIELD_IDS } from '../twenty/fields';
 import type { CheckedCv } from './cv';
 import { upsertPersonByEmail } from '../people/person';
-import { toApplicationInput, toPersonData, type SiteResolution } from './mapping';
+import { resolveSite } from '../sites';
+import { toApplicationInput, toPersonData } from './mapping';
 
 export type SubmitResult = { applicationId: string; duplicate: boolean };
 
@@ -23,22 +24,6 @@ export type SubmitDeps = {
   logger: Logger;
   now?: () => Date;
 };
-
-const SITE_KEY = /^[a-z0-9_]{1,64}$/;
-const MAX_KEY_RECEIVED = 64;
-
-/**
- * Reads `?site=` (approved 2026-10-24): missing -> Site empty, status MISSING; unknown -> Site empty,
- * status UNKNOWN; inactive -> linked to that Site, status INACTIVE; active -> linked, status KNOWN.
- * The key as received is kept (trimmed, max 64 characters) so HR can see what the link carried.
- */
-async function resolveSite(twenty: SubmitDeps['twenty'], siteKey: string | undefined): Promise<SiteResolution> {
-  const keyReceived = siteKey?.trim().slice(0, MAX_KEY_RECEIVED) || undefined;
-  if (!keyReceived) return { status: 'MISSING' };
-  const site = SITE_KEY.test(keyReceived) ? await twenty.findSiteByKey(keyReceived) : null;
-  if (!site) return { status: 'UNKNOWN', keyReceived };
-  return { status: site.active ? 'KNOWN' : 'INACTIVE', siteId: site.id, keyReceived };
-}
 
 /**
  * Exactly one Application per submission (CLAUDE.md section 6). A repeated submissionKey

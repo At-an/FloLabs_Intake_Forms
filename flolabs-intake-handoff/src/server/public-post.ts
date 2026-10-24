@@ -3,7 +3,7 @@ import { AppError, errorCodeOf, toPublicError } from './errors';
 import type { Logger } from './logger';
 import { clientIp, type RateLimiter } from './rate-limit';
 import type { VerifyHuman } from './turnstile';
-import { TwentyError, type TwentyClient } from './twenty/client';
+import { TwentyError } from './twenty/client';
 
 // Building blocks shared by the public POST endpoints (CLAUDE.md rule 5: rate limits and
 // Turnstile run before any Twenty call).
@@ -76,15 +76,6 @@ export async function readJsonObject(request: Request, maxBytes: number): Promis
   }
   if (!body || typeof body !== 'object' || Array.isArray(body)) throw new AppError('VALIDATION_FAILED');
   return body as Record<string, unknown>;
-}
-
-const SITE_KEY = /^[a-z0-9_]{1,64}$/;
-
-/** Embedded forms only run on active, allow-listed Sites (CLAUDE.md section 5). */
-export async function findActiveSite(twenty: Pick<TwentyClient, 'findSiteByKey'>, siteKey: unknown) {
-  if (typeof siteKey !== 'string' || !SITE_KEY.test(siteKey)) return null;
-  const site = await twenty.findSiteByKey(siteKey);
-  return site?.active ? site : null;
 }
 
 /** Logs a failed request with codes only and returns the generic public error. */

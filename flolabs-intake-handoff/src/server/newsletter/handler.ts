@@ -2,19 +2,18 @@ import 'server-only';
 import { NEWSLETTER_FORM } from '@/shared/config/embed-forms';
 import { newsletterSchema } from '@/shared/forms/embed-forms';
 import { fieldErrors } from '@/shared/forms/field-errors';
-import { AppError } from '../errors';
 import { upsertPersonByEmail } from '../people/person';
 import {
   checkEmailAndHuman,
   checkIpLimit,
   failure,
-  findActiveSite,
   json,
   readJsonObject,
   singleFlight,
   validationFailed,
   type GuardDeps,
 } from '../public-post';
+import { resolveSite } from '../sites';
 import type { TwentyClient } from '../twenty/client';
 
 // POST /api/newsletter (T8): find-or-create the Person by email and record marketing consent
@@ -50,18 +49,17 @@ export function createNewsletterHandler(deps: NewsletterDeps) {
       const blocked = await checkEmailAndHuman(email, body.turnstileToken, ip, deps, 'newsletter.blocked');
       if (blocked) return blocked;
 
-      const site = await findActiveSite(deps.twenty, body.site);
-      if (!site) throw new AppError('FORM_NOT_AVAILABLE');
-
       await once(email, async () => {
+        const site = await resolveSite(deps.twenty, body.site);
         const { personId, created } = await upsertPersonByEmail(
           {
             emails: { primaryEmail: email, additionalEmails: [] },
-            consent: { at: now().toISOString(), version: NEWSLETTER_FORM.consentVersion, siteKey: site.siteId },
+            // The key as the website sent it, whatever its status (spec D17, site rule 2026-10-24).
+            consent: { at: now().toISOString(), version: NEWSLETTER_FORM.consentVersion, siteKey: site.keyReceived },
           },
           deps,
         );
-        deps.logger.info('newsletter.subscribed', { personId, siteId: site.id, code: created ? 'NEW_PERSON' : 'EXISTING_PERSON' });
+        deps.logger.info('newsletter.subscribed', { personId, siteId: site.siteId, code: `${created ? 'NEW_PERSON' : 'EXISTING_PERSON'}_SITE_${site.status}` });
       });
       return json(200, { subscribed: true });
     } catch (error) {

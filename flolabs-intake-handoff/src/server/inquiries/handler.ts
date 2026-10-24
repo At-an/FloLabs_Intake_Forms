@@ -1,23 +1,22 @@
 import 'server-only';
 import { contactUsSchema, type ContactUsData } from '@/shared/forms/embed-forms';
 import { fieldErrors } from '@/shared/forms/field-errors';
-import { AppError } from '../errors';
 import { upsertPersonByEmail } from '../people/person';
 import {
   checkEmailAndHuman,
   checkIpLimit,
   failure,
-  findActiveSite,
   json,
   readJsonObject,
   singleFlight,
   validationFailed,
   type GuardDeps,
 } from '../public-post';
+import { resolveSite, type SiteResolution } from '../sites';
 import type { TwentyClient } from '../twenty/client';
-import type { Site } from '../twenty/types';
 
-// POST /api/inquiries (Contact Us, T9): Person (fill-empty) + one Inquiry with Site, status New.
+// POST /api/inquiries (Contact Us, T9): Person (fill-empty) + one Inquiry, status New, with the
+// website recorded and marked by the shared site rule (src/server/sites.ts).
 
 const MAX_BODY_BYTES = 16 * 1024;
 
@@ -31,13 +30,16 @@ export type InquiryDeps = GuardDeps & {
 
 type Result = { inquiryId: string; duplicate: boolean };
 
-export async function submitInquiry(data: ContactUsData, site: Site, deps: InquiryDeps): Promise<Result> {
+export async function submitInquiry(data: ContactUsData, siteKey: unknown, deps: InquiryDeps): Promise<Result> {
   const { twenty, logger, now = () => new Date() } = deps;
   const existing = await twenty.findInquiryBySubmissionKey(data.submissionKey);
   if (existing) {
     logger.info('inquiry.duplicate', { recordId: existing.id });
     return { inquiryId: existing.id, duplicate: true };
   }
+
+  const site: SiteResolution = await resolveSite(twenty, siteKey);
+  if (site.status !== 'KNOWN') logger.warn('inquiry.site_not_known', { code: `SITE_${site.status}` });
 
   const { personId } = await upsertPersonByEmail(
     { emails: { primaryEmail: data.email, additionalEmails: [] }, name: { firstName: data.firstName, lastName: data.lastName } },
@@ -51,9 +53,11 @@ export async function submitInquiry(data: ContactUsData, site: Site, deps: Inqui
     submittedAt: now().toISOString(),
     submissionKey: data.submissionKey,
     personId,
-    siteId: site.id,
+    ...(site.siteId && { siteId: site.siteId }),
+    siteStatus: site.status,
+    ...(site.keyReceived && { siteKeyReceived: site.keyReceived }),
   });
-  logger.info('inquiry.created', { recordId: id, personId, siteId: site.id });
+  logger.info('inquiry.created', { recordId: id, personId, siteId: site.siteId, code: `SITE_${site.status}` });
   return { inquiryId: id, duplicate: false };
 }
 
@@ -76,10 +80,7 @@ export function createInquiriesHandler(deps: InquiryDeps) {
       const blocked = await checkEmailAndHuman(parsed.data.email, body.turnstileToken, ip, deps, 'inquiry.blocked');
       if (blocked) return blocked;
 
-      const site = await findActiveSite(deps.twenty, body.site);
-      if (!site) throw new AppError('FORM_NOT_AVAILABLE');
-
-      const result = await once(parsed.data.submissionKey, () => submitInquiry(parsed.data, site, deps));
+      const result = await once(parsed.data.submissionKey, () => submitInquiry(parsed.data, body.site, deps));
       return json(result.duplicate ? 200 : 201, { inquiryId: result.inquiryId });
     } catch (error) {
       return failure(deps.logger, 'inquiry.failed', error, started);

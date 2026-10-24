@@ -69,7 +69,7 @@ Checkpoint A: tests and build pass; you review the schema map. (Schema decisions
 - Verify: manual run through all 3 Source branches; browser devtools show no Twenty key or URL.
 - Skill: frontend-ui-engineering.
 
-**T6b Embed loader + embed route (moved to the revised POC, with T8/T9).** S. **Done 2026-10-24**: `public/embed.js`, `/embed/[form]` (contact-us, newsletter; inactive/unknown site -> "not available"), CSP `frame-ancestors` = 15 active Site hosts + moodchanger.ai (localhost only in dev), all other pages `frame-ancestors 'none'` + `X-Frame-Options: DENY`; test page `/dev/embed-test` (dev only).
+**T6b Embed loader + embed route.** S. **Done 2026-10-24**: `public/embed.js` turns `<div data-flolabs-form=…>` into an auto-resizing iframe; `/embed/[form]` for `application`, `contact-us`, `newsletter`. Framing: CSP `frame-ancestors https:` (any HTTPS website, so future FloLabs websites work without a code change; decided 2026-10-24); all other pages `frame-ancestors 'none'` + `X-Frame-Options: DENY`. Unknown/inactive/missing site keys are recorded and marked, not refused. Test page `/dev/embed-test` (development only).
 - AC: `<script src=".../embed.js" data-form="contact-us" data-site="robocollective">` injects an auto-resizing iframe; CSP `frame-ancestors` lists only FloLabs domains; unknown site keys are rejected.
 - Verify: embedding works on an allow-listed test page and is refused on a non-listed origin.
 
@@ -127,6 +127,7 @@ Checkpoint D: one applicant (cross-track) goes Application -> Form 1 -> Form 2 -
 - Skill: security-and-hardening, then flolabs-code-reviewer.
 
 **T16 Documentation.** S
+- AC (2026-10-24): document as a known shortcoming that the Newsletter is **single opt-in** (consent recorded at sign-up, no confirmation email), and the required future step: double opt-in with Amazon SES (confirmation email with a signed link; keep consent pending until the link is clicked, then set `communicationConsent` and its timestamp; add a status field for Pending/Confirmed/Unsubscribed and an unsubscribe link).
 - Setup, env vars, the Twenty calls used, assumptions, limitations; ADRs for RAW_JSON answers and stateless tokens.
 - Skill: documentation-and-adrs.
 
@@ -148,7 +149,9 @@ Pipeline automation (status changes, emails to applicants), Lifecycle/Lead Statu
 - Email: HR sends the tokenized links manually until SES is available.
 - Token lifetime: no expiry (changed from 21 days on 2026-10-24); single use.
 - Checkpoint A (2026-10-24): source = single SELECT, 26 options; program values and live labels kept, Backend Developer Intern added; source labels cleaned with values kept; Inquiry, Form Submission, Reference approved; no Subscription object (consents stay on Application); Form Submission gets `answersSummary`; reference known duration = 0-6 months / 6-12 months / 1-2 years / 2-3 years; "roles" -> programs, "schools" -> tracks; POC = Application form first.
-- Embeds (iframe via loader script): Contact Us, Newsletter. Hosted links: Application (public), Form 1, 2, 3 (tokened). (Corrected 2026-10-24.)
+- Embeds (iframe in a section of any HTTPS website, via loader script): Application, Contact Us, Newsletter. Hosted links: Application (public `/apply`), Form 1, 2, 3 (tokened). (Updated 2026-10-24.)
+- Site rule for every form: Known / Missing / Unknown / Inactive, key as received kept (2026-10-24).
+- Newsletter: single opt-in for now; double opt-in via Amazon SES later (to be documented in T16). Wording approved (`newsletter-consent-v1`).
 - Sites: all 16 created in Twenty on 2026-10-24 (`scripts/t2-sites.mjs`); `flomad` inactive.
 - CV: PDF/DOCX in Cloudflare R2; Twenty attachment preferred, overlay viewer as fallback.
 - Technical Writing Q3 snippet approved. G8 = number 1-40; G9 = 4 duration choices.

@@ -90,12 +90,20 @@ describe('POST /api/newsletter', () => {
     expect((await res.json()).error.fields.email).toMatch(/valid email/);
   });
 
-  it('refuses an inactive site and a failed bot check, writing nothing', async () => {
-    const inactive = setup();
-    expect((await inactive.handle(post({ ...body, site: 'flomad' }))).status).toBe(403);
-    const bot = setup([], async () => ({ ok: false, code: 'TURNSTILE_REJECTED' }));
-    expect((await bot.handle(post(body))).status).toBe(403);
-    expect([...inactive.fake.calls.createPerson, ...bot.fake.calls.createPerson]).toEqual([]);
+  it.each([
+    ['an unknown website', 'nope', 'nope'],
+    ['an inactive Site', 'flomad', 'flomad'],
+    ['no site key', undefined, undefined],
+  ])('accepts %s and keeps the key as received', async (_case, site, expectedSite) => {
+    const { handle, fake } = setup();
+    expect((await handle(post({ ...body, site }))).status).toBe(200);
+    expect(fake.calls.createPerson[0]!.communicationConsentSite).toBe(expectedSite);
+  });
+
+  it('refuses a failed bot check and writes nothing', async () => {
+    const { handle, fake } = setup([], async () => ({ ok: false, code: 'TURNSTILE_REJECTED' }));
+    expect((await handle(post(body))).status).toBe(403);
+    expect(fake.calls.createPerson).toEqual([]);
   });
 
   it('never logs the email', async () => {

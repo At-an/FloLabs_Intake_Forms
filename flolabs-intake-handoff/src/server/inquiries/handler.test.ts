@@ -38,7 +38,7 @@ function setup(options: { verifyHuman?: VerifyHuman; ipLimit?: number } = {}) {
 }
 
 describe('POST /api/inquiries (Contact Us)', () => {
-  it('creates the Person and one Inquiry with Site and status New', async () => {
+  it('creates the Person and one Inquiry with Site, status New and site status Known', async () => {
     const { handle, fake } = setup();
     const res = await handle(post(body));
     expect(res.status).toBe(201);
@@ -55,6 +55,8 @@ describe('POST /api/inquiries (Contact Us)', () => {
         submissionKey: body.submissionKey,
         personId: fake.people[0]!.id,
         siteId: SITES[1]!.id,
+        siteStatus: 'KNOWN',
+        siteKeyReceived: 'robocollective',
       },
     ]);
     expect(await res.json()).toEqual({ inquiryId: expect.stringMatching(/^[0-9a-f-]{36}$/) });
@@ -77,15 +79,15 @@ describe('POST /api/inquiries (Contact Us)', () => {
   });
 
   it.each([
-    ['an unknown site', 'nope'],
-    ['an inactive site', 'flomad'],
-    ['no site', undefined],
-  ])('refuses %s and writes nothing', async (_case, site) => {
+    ['an unknown website', 'nope', { siteId: undefined, siteStatus: 'UNKNOWN', siteKeyReceived: 'nope' }],
+    ['an inactive Site', 'flomad', { siteId: SITES[2]!.id, siteStatus: 'INACTIVE', siteKeyReceived: 'flomad' }],
+    ['no site key', undefined, { siteId: undefined, siteStatus: 'MISSING', siteKeyReceived: undefined }],
+  ])('accepts %s and marks it (forms may run on future websites)', async (_case, site, expected) => {
     const { handle, fake } = setup();
     const res = await handle(post({ ...body, site }));
-    expect(res.status).toBe(403);
-    expect((await res.json()).error.code).toBe('FORM_NOT_AVAILABLE');
-    expect([fake.calls.createPerson, fake.calls.createInquiry]).toEqual([[], []]);
+    expect(res.status).toBe(201);
+    const { siteId, siteStatus, siteKeyReceived } = fake.calls.createInquiry[0]!;
+    expect({ siteId, siteStatus, siteKeyReceived }).toEqual(expected);
   });
 
   it('rejects a failed bot check before any Twenty call', async () => {

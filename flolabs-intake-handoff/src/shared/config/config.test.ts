@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { COUNTRIES, countryName, isCountryCode } from './countries';
 import { labelOf } from './options';
 import { PROGRAMS, PROGRAMS_BY_TRACK, TRACKS, trackOf, tracksOf } from './programs';
-import { embedFrameAncestors, EMBED_HOSTS } from './sites';
+import { embedFrameAncestors } from './sites';
 import { SOURCES } from './sources';
 
 // Offline check against the latest schema snapshot; the live check is options.live.test.ts.
@@ -73,17 +73,9 @@ describe('countries', () => {
   });
 });
 
-describe('embed allow-list', () => {
-  it('contains the hostname of every active Site and no inactive one', () => {
-    for (const site of snapshot.sites) {
-      expect(EMBED_HOSTS.includes(site.hostname as (typeof EMBED_HOSTS)[number]), site.siteId).toBe(site.active);
-    }
-  });
-
-  it('allows local test pages only in development', () => {
-    expect(embedFrameAncestors(false)).not.toMatch(/localhost|'self'/);
-    expect(embedFrameAncestors(false).split(' ').every((s) => s.startsWith('https://'))).toBe(true);
-    expect(embedFrameAncestors(true)).toContain("http://localhost:*");
+describe('embed framing policy', () => {
+  it('lets any HTTPS website frame the embeds in production, and local pages only in development', () => {
+    expect(embedFrameAncestors(false)).toBe('https:');
+    expect(embedFrameAncestors(true)).toContain('http://localhost:*');
   });
 });
-

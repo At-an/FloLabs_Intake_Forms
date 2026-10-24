@@ -5,7 +5,8 @@ import { labelOf } from '@/shared/config/options';
 import { PROGRAMS } from '@/shared/config/programs';
 import type { ApplicationFormData } from '@/shared/forms/application';
 import type { PersonData } from '../people/person';
-import type { ApplicationInput, SiteStatus } from '../twenty/types';
+import type { SiteResolution } from '../sites';
+import type { ApplicationInput } from '../twenty/types';
 
 // Form data -> Twenty records. API names: docs/twenty-schema.md.
 
@@ -37,9 +38,6 @@ export function toPersonData(
     }),
   };
 }
-
-/** Outcome of reading `?site=` from the application link (spec section 1). */
-export type SiteResolution = { status: SiteStatus; siteId?: string; keyReceived?: string };
 
 /** Display name of the Application record in Twenty, e.g. "Jane Doe - UI/UX Design Intern". */
 export function applicationName(data: ApplicationFormData): string {
