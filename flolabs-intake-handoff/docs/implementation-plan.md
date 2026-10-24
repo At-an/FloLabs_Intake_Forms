@@ -142,7 +142,7 @@ Checkpoint D: one applicant (cross-track) goes Application -> Form 1 -> Form 2 -
   5. `.gitignore` ignores every `.env*` file except `.env.example`.
 - Known limitations (accepted for launch, see `docs/production-launch.md`): CSP allows inline scripts (Next.js bootstrap; a nonce would remove it); rate limits and the per-link queue are in memory, so run **one** app instance; R2 bucket policy is the team lead's (checked indirectly: unsigned CV URL returns 403, T6c); data retention/deletion policy to be set by FloLabs (T16).
 
-**T16 Documentation.** S
+**T16 Documentation.** S. **Done 2026-10-24**: `docs/hr-guide.md`, `docs/implementation-report.md`, runbook `docs/production-launch.md` (updated for the public GitHub repository and the `develop`/`main` branches), root `README.md`. The Newsletter single opt-in shortcoming and the SES double opt-in step are documented in the HR guide (Newsletter section) and the report (section 10).
 - AC (2026-10-24): document as a known shortcoming that the Newsletter is **single opt-in** (consent recorded at sign-up, no confirmation email), and the required future step: double opt-in with Amazon SES (confirmation email with a signed link; keep consent pending until the link is clicked, then set `communicationConsent` and its timestamp; add a status field for Pending/Confirmed/Unsubscribed and an unsubscribe link).
 - Setup, env vars, the Twenty calls used, assumptions, limitations; ADRs for RAW_JSON answers and stateless tokens.
 - Skill: documentation-and-adrs.

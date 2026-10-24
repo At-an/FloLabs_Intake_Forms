@@ -22,29 +22,32 @@ It talks only to Twenty (`https://157-230-82-204.sslip.io`) and Cloudflare Turns
 | Where the app runs | On the same DigitalOcean droplet as Twenty (157.230.82.204), next to it, behind the droplet's reverse proxy | No new server; the app is light. Any Linux VM with Node 24 works the same way. |
 | How many app instances | **Exactly one** | Rate limits and the "one send per link at a time" queue live in memory. Two instances would double the limits and weaken the queue. Moving them to Redis is the upgrade path if you ever need more. |
 | DNS / TLS | `forms.flolabsinnovations.com` proxied through **Cloudflare** (orange cloud), TLS "Full (strict)" | Free TLS, DDoS protection, and the real visitor IP in `cf-connecting-ip`. |
-| Release unit | A git tag per release (`v1.0.0`, `v1.0.1`, ...) | Easy rollback: redeploy the previous tag. |
+| Release unit | A git tag on `main` per release (`v1.0.0`, `v1.0.1`, ...) | Easy rollback: redeploy the previous tag. |
 
 If Cloudflare is not used, see the nginx/Caddy variant in step 6.
 
 ---
 
-## 1. Put the code in a private GitHub repository
+## 1. The GitHub repository
 
-The repository has no remote yet. The app lives in the `flolabs-intake-handoff/` folder.
+The code is in the **public** repository **https://github.com/at-an/FloLabs_Intake_Forms** (owner: `at-an`). The app lives in its `flolabs-intake-handoff/` folder.
 
-1. Create a **private** repository in the FloLabs GitHub organisation (for example `flolabs/intake-forms`).
-2. From the project root (`Twenty_CRM/`): merge the work branch into `main`, add the remote and push:
-   ```bash
-   git checkout main
-   git merge --no-ff t3-scaffold-twenty-client
-   git remote add origin git@github.com:flolabs/intake-forms.git
-   git push -u origin main
-   ```
-3. Protect `main`: pull requests required, CI (step 2) must pass.
+**Branches:**
 
-**Check:** `.env.local` is **not** in the repository (`git ls-files | grep env` shows only `.env.example`). The secret scan in T15 found no secrets in the history.
+| Branch | Purpose |
+|---|---|
+| `develop` | Day-to-day work. Feature branches are merged here through pull requests. |
+| `main` | What runs in production. Updated only by a pull request from `develop`, then tagged (`v1.0.0`, ...). |
 
-## 2. Continuous integration (every pull request and push to `main`)
+1. In the repository settings → **Branches**, protect `main` and `develop`: pull request required, CI (step 2) must pass, no force pushes.
+2. Settings → **Code security**: keep **Secret scanning** and **Push protection** on (on by default for public repositories). They block a push that contains an API key.
+3. Add the team lead as a collaborator (Settings → Collaborators). If the repository later moves to a FloLabs organisation, use Settings → Transfer; GitHub redirects the old address.
+
+Because the repository is public, **anything committed is public forever**. Secrets only ever go in `.env.local` (development) or `/opt/flolabs-forms/.env.production` (server); both are ignored by git.
+
+**Check:** `git ls-files | grep env` shows only `flolabs-intake-handoff/.env.example`. The T15 scan found no secrets in the history.
+
+## 2. Continuous integration (every pull request, every push to `develop` or `main`, every release tag)
 
 Add `.github/workflows/ci.yml` at the repository root:
 
@@ -53,7 +56,7 @@ name: CI
 on:
   pull_request:
   push:
-    branches: [main]
+    branches: [develop, main]
     tags: ['v*']
 permissions:
   contents: read
@@ -135,8 +138,8 @@ On the server (Ubuntu), as root once:
 curl -fsSL https://deb.nodesource.com/setup_24.x | bash - && apt-get install -y nodejs
 useradd --system --home /opt/flolabs-forms --shell /usr/sbin/nologin flolabs-forms
 
-# Code at a release tag (use a read-only deploy key for the private repo)
-git clone --branch v1.0.0 git@github.com:flolabs/intake-forms.git /opt/flolabs-forms/repo
+# Code at a release tag (public repository: no key needed to read it)
+git clone --branch v1.0.0 https://github.com/at-an/FloLabs_Intake_Forms.git /opt/flolabs-forms/repo
 cd /opt/flolabs-forms/repo/flolabs-intake-handoff
 npm ci && npm run build
 chown -R flolabs-forms: /opt/flolabs-forms
@@ -213,7 +216,10 @@ Use `data-flolabs-form="contact-us"` or `"newsletter"` for the other two. The sc
 
 ## 9. Releasing updates and rolling back
 
-**Release:** merge to `main` with CI green → tag `vX.Y.Z` → on the server:
+**Release:**
+1. Open a pull request **`develop` → `main`**; merge it when CI is green.
+2. Tag the merge commit on `main`: `git checkout main && git pull && git tag vX.Y.Z && git push origin vX.Y.Z` (or create the release in GitHub → Releases, which makes the tag).
+3. On the server:
 
 ```bash
 cd /opt/flolabs-forms/repo && sudo -u flolabs-forms git fetch --tags && sudo -u flolabs-forms git checkout vX.Y.Z
@@ -223,7 +229,7 @@ systemctl restart flolabs-forms      # then run the smoke test (step 7)
 
 **Rollback:** the same commands with the previous tag. A restart clears the in-memory rate limits; nothing else is lost (all data lives in Twenty, drafts live in applicants' browsers).
 
-**Later automation (optional):** a GitHub Actions job on `v*` tags that runs the release commands over SSH (deploy key + a `DEPLOY_SSH_KEY` repository secret). Worth adding once releases are frequent.
+**Later automation (optional):** a GitHub Actions job on `v*` tags that runs the release commands over SSH (an SSH key stored as the `DEPLOY_SSH_KEY` repository secret, never in the code). Worth adding once releases are frequent.
 
 ## 10. Operating it
 
