@@ -59,12 +59,12 @@ Checkpoint A: tests and build pass; you review the schema map. (Schema decisions
 - AC (risk mitigation): each option has `{value, label}`; the UI shows labels, the server only ever sends API values to Twenty; a test fails if any config value is missing from the live Twenty options.
 - Verify: unit tests for each rule and for normalization (email, phone E.164).
 
-**T5 POST /api/applications.** M
+**T5 POST /api/applications.** M. **Done 2026-10-24**: `src/server/applications` (handler, submit, mapping with fill-empty rule) + `src/app/api/applications/route.ts`. One real run: Application `7ca6ccf2-2aa0-478b-a76d-c655a6f2037f` (test record, source Other "T5 end-to-end test"); retry with the same key returned 200 + same id. Known gap until T7: two truly simultaneous requests with one key could both pass the duplicate check.
 - AC: find-or-create Person (fill-empty only); exactly one Application with all programs + Site; marketing and SMS/phone consents written to their own Application fields with timestamps + consentVersion; duplicate submissionKey returns the original result; generic errors only.
 - Verify: tests against mocked Twenty; one real run checked in the Twenty UI.
 - Depends: T2a, T3, T4.
 
-**T6 Application form UI (hosted page `/apply`).** M
+**T6 Application form UI (hosted page `/apply`).** M. **Done 2026-10-24** (`src/app/apply`): live inline errors + "Looks good" marks, error summary with links, conditional Other/Referral fields, programs grouped by track, one submission key per form. CV field comes with T6c, Turnstile with T7.
 - AC: live inline errors/success; conditional fields; accessible labels/keyboard; `?site=` resolved to an active Site server-side.
 - Verify: manual run through all 3 Source branches; browser devtools show no Twenty key or URL.
 - Skill: frontend-ui-engineering.

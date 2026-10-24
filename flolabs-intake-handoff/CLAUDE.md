@@ -54,7 +54,7 @@ Plus a Contact Us form and a Newsletter widget for FloLabs websites.
 - CSP `frame-ancestors` is an allow-list of FloLabs domains.
 - `data-site` is validated against an allow-list and resolved to a Twenty Site server-side.
 
-**Application link.** Public, no token. `?site=<site_id>` attributes the Application to a Site; validated server-side against the active Sites (approved 2026-10-24: missing or unknown -> `flolabs_international`). The applicant never chooses the Site. The POC uses `flolabs_international`.
+**Application link.** Public, no token. `?site=<site_id>` attributes the Application to a Site; validated server-side against the active Sites (approved 2026-10-24): active -> Site linked, `siteStatus` KNOWN; missing -> Site empty, MISSING; unknown -> Site empty, UNKNOWN; inactive -> that Site linked, INACTIVE. The key as received is kept in `siteKeyReceived`. The applicant never chooses the Site. The POC uses `flolabs_international`.
 
 **Sites.** All 16 FloLabs Sites exist in Twenty (`scripts/t2-sites.mjs`, ids in `docs/twenty-schema.md`). `flomad` is inactive (expired certificate, site down).
 
@@ -111,7 +111,8 @@ POC scope: **the Application form first.** Forms 1-3, Contact Us and Newsletter 
 2. T2a Application schema changes: **done** (2026-10-24). T2b (new objects, Person consent fields) waits for the revised POC.
 3. T3 scaffold + typed Twenty client: **done** (2026-10-24, branch `t3-scaffold-twenty-client`).
 4. T4 shared config + Zod schema: **done** (2026-10-24). Consent checkbox wording approved (`src/shared/config/application.ts`).
-5. Next: T5 `POST /api/applications` (confirm the `addressCountry` and phone formats with one test write).
+5. T5 `POST /api/applications` and T6 `/apply` form: **done** (2026-10-24). Twenty formats confirmed by a test write: `addressCountry` = English country name; phone = national number + ISO country code + calling code.
+6. Next: T6c-0 (Twenty storage on R2, team lead) and T6c (CV upload), then T7 (Turnstile + rate limits).
 
 Recommended skills per step: source-driven-development (T1), api-and-interface-design (T5), security-and-hardening (T5, T7, T15), incremental-implementation, frontend-ui-engineering (T6), test-driven-development, flolabs-code-reviewer before merge, documentation-and-adrs (T16).
 

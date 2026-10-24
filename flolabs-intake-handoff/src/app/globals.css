@@ -1,0 +1,43 @@
+/* Interface colour: cream white #FCFBF4 (FloLabs, 2026-10-24). Light theme only, so the
+   cream is never replaced by a dark theme. Inputs stay white so fields stand out. */
+:root {
+  --bg: #fcfbf4;
+  --surface: #fcfbf4;
+  --input-bg: #ffffff;
+  --text: #1a1d23;
+  --muted: #555b66;
+  --border: #d9d6c8;
+  --accent: #1f5fd1;
+  --accent-text: #ffffff;
+  --focus: #1f5fd1;
+  --error: #b42318;
+  --error-bg: #fdf0ec;
+  --success: #067647;
+  --success-bg: #ecf8ef;
+  --radius: 8px;
+  color-scheme: light;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
