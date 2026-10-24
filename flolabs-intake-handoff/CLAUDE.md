@@ -119,7 +119,7 @@ POC scope: **the Application form first.** Forms 1-3, Contact Us and Newsletter 
 8. T2b (Inquiry + Person consent fields), T6b embeds, T8 Newsletter: **done** (2026-10-24). T9 Contact Us: code done; live run waits for the admin to give the API key's role access to the Inquiry object.
 9. Test page for embeds: `npm run dev`, then `http://localhost:3000/dev/embed-test`.
 10. T2b complete (Form Submission, Reference), T10 signed links and T11 form engine: **done** (2026-10-24). Waiting for the admin: the API key's role must be allowed to read/create Inquiries, Form Submissions and References.
-11. T12-T14 Forms 1-3 (configs, `POST /api/forms/<form>`, UI with browser drafts, Forms 1-2 multi-step, Form 3 References): **code done** (2026-10-24), unit-tested. Live check `npm run test:live-write` (writes records) waits for the same admin permission. Preview: `/dev/link-form`.
+11. T12-T14 Forms 1-3 (configs, `POST /api/forms/<form>`, UI with browser drafts, all three multi-step with a shared header on every step, Form 3 References): **code done** (2026-10-24), unit-tested. Live check `npm run test:live-write` (writes records) waits for the same admin permission. Preview: `/dev/link-form`.
 12. Next: Checkpoint D (one cross-track applicant through Application -> Forms 1-3, once permissions are granted), then T15 security pass, T16 docs.
 
 Recommended skills per step: source-driven-development (T1), api-and-interface-design (T5), security-and-hardening (T5, T7, T15), incremental-implementation, frontend-ui-engineering (T6), test-driven-development, flolabs-code-reviewer before merge, documentation-and-adrs (T16).
