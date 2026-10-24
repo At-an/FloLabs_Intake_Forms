@@ -41,18 +41,22 @@ Plus a Contact Us form and a Newsletter widget for FloLabs websites.
 ## 5. Forms and links (13 forms + 1 widget)
 | Form | Delivery | Versions |
 |---|---|---|
-| Application | iframe embed on every FloLabs site | 1 |
-| Contact Us | iframe embed | 1 |
-| Newsletter (widget, email only) | iframe embed | 1 |
+| Application | public hosted link `/apply?site=<site_id>` (shared during recruitment) | 1 |
+| Contact Us | iframe embed on FloLabs sites | 1 |
+| Newsletter (widget, email only) | iframe embed on FloLabs sites | 1 |
 | Form 1 Contacted | hosted link `/contacted?t=<token>` | 5 track versions, merged when positions span tracks |
 | Form 2 Before Meeting | hosted link `/before-meeting?t=<token>` | 5 track versions, merged likewise |
 | Form 3 Masterclass | hosted link `/masterclass?t=<token>` | 1 |
 
-**Embeds.** One loader `embed.js` + one `/embed/[form]` route:
-`<div data-flolabs-form="application" data-site="robocollective"></div><script src="https://forms.<domain>/embed.js" async></script>`
+**Embeds (Contact Us and Newsletter only).** One loader `embed.js` + one `/embed/[form]` route:
+`<div data-flolabs-form="contact-us" data-site="robocollective"></div><script src="https://forms.<domain>/embed.js" async></script>`
 - The loader injects an auto-resizing iframe.
 - CSP `frame-ancestors` is an allow-list of FloLabs domains.
-- `data-site` is validated against an allow-list and resolved to a Twenty Site server-side. The POC uses Site `flolabs_international`. The applicant never chooses the Site.
+- `data-site` is validated against an allow-list and resolved to a Twenty Site server-side.
+
+**Application link.** Public, no token. `?site=<site_id>` attributes the Application to a Site; validated server-side against the active Sites (approved 2026-10-24: missing or unknown -> `flolabs_international`). The applicant never chooses the Site. The POC uses `flolabs_international`.
+
+**Sites.** All 16 FloLabs Sites exist in Twenty (`scripts/t2-sites.mjs`, ids in `docs/twenty-schema.md`). `flomad` is inactive (expired certificate, site down).
 
 **Tokens.** Stateless HMAC-signed token `{applicationId, formType}`:
 - **No expiry** (unlimited validity), but single use (rejected if a Form Submission already exists for it).

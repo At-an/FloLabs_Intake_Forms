@@ -9,7 +9,7 @@ Data types use Twenty field types. They are verified against the live instance i
 |---|---|
 | D1 | 13 forms + 1 widget: Application, Form 1 (Contacted) x5 tracks, Form 2 (Before Meeting) x5 tracks, Form 3 (Masterclass), Contact Us, plus the Newsletter widget. |
 | D0 | Terminology: internship roles are called **programs**; the former "schools" are called **tracks**. Every program belongs to exactly one track (section 9). The Twenty field keeps its API name `positionAppliedFor`. |
-| D2 | 3 hosted links (Form 1, 2, 3), each with a per-applicant signed token with **no expiry** (single use still applies). 3 embeds (Application, Contact Us, Newsletter) on the websites via one loader script. |
+| D2 | 3 hosted links (Form 1, 2, 3), each with a per-applicant signed token with **no expiry** (single use still applies). The Application form is a public hosted link (no token). 2 embeds (Contact Us, Newsletter) on the websites via one loader script. |
 | D3 | Forms 1 and 2 show the track-wide questions plus only the applicant's own program questions. Positions spanning tracks produce one merged form: general questions once, one section per track, closing question once. |
 | D4 | Form 1: Full name, Email and Program are pre-filled from the Application and read-only. A statement replaces the track question: "The program you applied for, <Program>, is under the <Track> track." |
 | D5 | No Subscription object. Consents stay separate, in the existing Application fields: marketing/newsletter = `communicationConsent` + `communicationConsentAt`; SMS/phone = `phoneMessagingConsent` + `phoneMessagingConsentAt`; `consentVersion` records the wording shown. The application form gets two optional checkboxes, unchecked by default: marketing opt-in and SMS/phone opt-in. Newsletter consent is stored on the Person (D17). |
@@ -32,7 +32,7 @@ Forms 1-3 also send `token` (signed link).
 
 ---
 
-## 1. Application form (embedded)
+## 1. Application form (hosted link `/apply?site=<site_id>`)
 
 | Field | Input | Twenty type -> target | Req | Notes |
 |---|---|---|---|---|
@@ -54,7 +54,7 @@ Forms 1-3 also send `token` (signed link).
 | Marketing opt-in | checkbox | BOOLEAN -> Application.communicationConsent (+ communicationConsentAt, consentVersion) | N | Unchecked by default (D5) |
 | SMS/phone opt-in | checkbox | BOOLEAN -> Application.phoneMessagingConsent (+ phoneMessagingConsentAt, consentVersion) | N | Unchecked by default (D5) |
 | (system) Submission key | hidden | TEXT -> Application.submissionKey | - | Retry protection (D8) |
-| site key | from embed snippet | RELATION -> Application.site | Y | Allow-listed; resolved server-side |
+| site key | `?site=` in the link | RELATION -> Application.site | Y | Allow-listed active Site; resolved server-side; missing/unknown -> flolabs_international (approved) |
 | (system) Submitted At | - | DATE_TIME | - | Server time |
 | (system) Lifecycle Stage / Lead Status | - | SELECT | - | Test values for POC |
 | (system) Source Form ID / Form Version | - | TEXT | - | |

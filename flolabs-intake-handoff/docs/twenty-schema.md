@@ -193,11 +193,26 @@ T2a added TikTok, Reddit, YouTube, X (Twitter), Company Website, Job Board, Even
 | `applications` | RELATION one-to-many -> `application.site` |
 | `attachments` | RELATION one-to-many -> `attachment.target` |
 
-Records:
+Records (16, created 2026-10-24 by `scripts/t2-sites.mjs`; `flomad` inactive: expired certificate, site down):
 
 | id | name | siteId | hostname | active |
 |---|---|---|---|---|
+| `dd1ed9f3-b482-4935-993d-54c9fdadc1bc` | Athletic Performance Intelligence | `athletic_performance_intelligence` | www.athleticperformanceintelligence.com | true |
+| `5ed5b8db-1958-4617-9942-2d45fb908a98` | Bootcamp University | `bootcamp_university` | www.bootcampuniversity.org | true |
+| `5cbfa225-5e5e-4d8d-8676-c5e4a8ff3a86` | CAIPO | `caipo` | www.caipo.ai | true |
+| `865f923f-ad6b-415b-a895-da476a749da4` | Cosmos Intelligence | `cosmos_intelligence` | www.cosmosintelligence.org | true |
+| `71ef0476-0540-4229-800f-74c86fc266b5` | FloBrain | `flobrain` | www.flobrain.ai | true |
+| `be6cc5b2-2405-490d-9471-77a37a861c7a` | FloLabs Innovations Group | `flolabs_innovations_group` | www.flolabsinnovations.com | true |
 | `f39c8196-db3d-41ee-bc58-abfecf43933d` | FloLabs International | `flolabs_international` | www.flolabs.international | true |
+| `1ed21c2c-f7ec-4343-a965-425d03568069` | Flomad | `flomad` | www.flomad.com | false |
+| `1bf1758e-36b9-4e7c-88c2-d315744459b0` | Flomad Travel | `flomad_travel` | www.flomadtravel.com | true |
+| `136a52fe-250d-40b3-b94f-43b9d05c178a` | Flo Studios | `flo_studios` | www.flostudios.ai | true |
+| `68dc7d9c-1d22-446d-bce9-b668f6e86990` | Hephaestus International | `hephaestus_international` | www.hephaestus.international | true |
+| `da57350e-bedc-4f4a-9d03-5806065f6b8f` | Legal Ethics Ventures Institute | `legal_ethics_ventures_institute` | www.legalethicsventuresinstitute.com | true |
+| `97d16c63-27aa-48a4-b26a-9e2f0729238b` | Moodchanger | `moodchanger` | www.moodchanger.ai | true |
+| `c87adcc9-1edd-4a4e-af19-1ee6f8fc80d5` | Robocollective | `robocollective` | www.robocollective.ai | true |
+| `77bd7aa8-c574-4bf9-96c2-4b8b0c712c4c` | Space Ventures Institute | `space_ventures_institute` | www.spaceventuresinstitute.com | true |
+| `4fbfaae6-c3b7-4dc1-9de7-32c91d65ef5c` | TARRL | `tarrl` | www.tarrl.org | true |
 
 ## Attachment (`attachment` / `attachments`)
 

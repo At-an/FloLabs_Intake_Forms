@@ -1,7 +1,7 @@
 # Implementation Plan: FloLabs Intake Forms on Twenty (v1)
 
 ## Overview
-One Next.js + TypeScript app, colocated with the CRM host, serves 13 forms + 1 widget: 3 hosted links (Form 1, 2, 3, each with a per-applicant token) and 3 embeds (Application, Contact Us, Newsletter) delivered by one loader script that injects an iframe. It writes only through a server-side, purpose-built Twenty client. Spec: `Intake Forms Spec v1.md`.
+One Next.js + TypeScript app, colocated with the CRM host, serves 13 forms + 1 widget: 4 hosted links (Application, public; Form 1, 2, 3, each with a per-applicant token) and 2 embeds (Contact Us, Newsletter) delivered by one loader script that injects an iframe. It writes only through a server-side, purpose-built Twenty client. Spec: `Intake Forms Spec v1.md`.
 
 ## Architecture decisions
 - Config-driven forms: one renderer each for Form 1 and Form 2; a track config holds question IDs, program-to-question mapping and the merge rules. Questions are versioned (`formVersion`).
@@ -10,7 +10,8 @@ One Next.js + TypeScript app, colocated with the CRM host, serves 13 forms + 1 w
 - Stateless HMAC-signed link tokens {applicationId, formType}, no expiry. Single use is enforced by an existing Form Submission. Secret lives in env.
 - Twenty generates every record `id` (the Submission ID). Idempotency via a client `submissionKey` stored on every record created.
 - Answers stored as RAW_JSON keyed by question ID, plus a generated markdown summary (RICH_TEXT) for HR/marketing; filterable fields typed.
-- Embeds: one `embed.js` loader + one `/embed/[form]` route; `frame-ancestors` allow-list of FloLabs domains; Site resolved server-side from an allow-listed site key.
+- Embeds (Contact Us, Newsletter): one `embed.js` loader + one `/embed/[form]` route; `frame-ancestors` allow-list of FloLabs domains; Site resolved server-side from an allow-listed site key.
+- Application: hosted page `/apply?site=<site_id>`; Site resolved server-side from the allow-listed key.
 - CVs in a private Cloudflare R2 bucket. Path A: through Twenty's own file storage (on R2) into `Application.cvResume`. Path B: Twenty keeps only the object key. No public URLs.
 - Logging: structured JSON with record IDs only (no names, emails, phones, answers). Users see generic errors.
 
@@ -63,13 +64,13 @@ Checkpoint A: tests and build pass; you review the schema map. (Schema decisions
 - Verify: tests against mocked Twenty; one real run checked in the Twenty UI.
 - Depends: T2a, T3, T4.
 
-**T6 Application form UI (embed-ready).** M
-- AC: live inline errors/success; conditional fields; accessible labels/keyboard; works inside an iframe on an allow-listed site.
+**T6 Application form UI (hosted page `/apply`).** M
+- AC: live inline errors/success; conditional fields; accessible labels/keyboard; `?site=` resolved to an active Site server-side.
 - Verify: manual run through all 3 Source branches; browser devtools show no Twenty key or URL.
 - Skill: frontend-ui-engineering.
 
-**T6b Embed loader + embed route.** S
-- AC: `<script src=".../embed.js" data-form="application" data-site="robocollective">` injects an auto-resizing iframe; CSP `frame-ancestors` lists only FloLabs domains; unknown site keys are rejected.
+**T6b Embed loader + embed route (moved to the revised POC, with T8/T9).** S
+- AC: `<script src=".../embed.js" data-form="contact-us" data-site="robocollective">` injects an auto-resizing iframe; CSP `frame-ancestors` lists only FloLabs domains; unknown site keys are rejected.
 - Verify: embedding works on an allow-listed test page and is refused on a non-listed origin.
 
 **T6c-0 Point Twenty's file storage at R2 (server config, path A only).** S
@@ -90,7 +91,7 @@ Checkpoint A: tests and build pass; you review the schema map. (Schema decisions
 - AC: server rejects missing/invalid Turnstile tokens before any Twenty or R2 call; rate limit per IP and per email; idempotency via submissionKey (T5).
 - Verify: test with Cloudflare's always-fail key; a burst of requests gets HTTP 429.
 
-Checkpoint B: run the briefing's POC acceptance test end to end (including CV in R2 and the embed on a test page). Your sign-off.
+Checkpoint B: run the briefing's POC acceptance test end to end (including CV in R2, opened from the `/apply` link). Your sign-off.
 
 ## Phase 2: Simple embeds (parallel, revised POC)
 
@@ -147,7 +148,8 @@ Pipeline automation (status changes, emails to applicants), Lifecycle/Lead Statu
 - Email: HR sends the tokenized links manually until SES is available.
 - Token lifetime: no expiry (changed from 21 days on 2026-10-24); single use.
 - Checkpoint A (2026-10-24): source = single SELECT, 26 options; program values and live labels kept, Backend Developer Intern added; source labels cleaned with values kept; Inquiry, Form Submission, Reference approved; no Subscription object (consents stay on Application); Form Submission gets `answersSummary`; reference known duration = 0-6 months / 6-12 months / 1-2 years / 2-3 years; "roles" -> programs, "schools" -> tracks; POC = Application form first.
-- Embeds (iframe via loader script): Application, Contact Us, Newsletter. Hosted links: Form 1, 2, 3.
+- Embeds (iframe via loader script): Contact Us, Newsletter. Hosted links: Application (public), Form 1, 2, 3 (tokened). (Corrected 2026-10-24.)
+- Sites: all 16 created in Twenty on 2026-10-24 (`scripts/t2-sites.mjs`); `flomad` inactive.
 - CV: PDF/DOCX in Cloudflare R2; Twenty attachment preferred, overlay viewer as fallback.
 - Technical Writing Q3 snippet approved. G8 = number 1-40; G9 = 4 duration choices.
 - Application required/optional fields approved.
