@@ -64,6 +64,7 @@ export type ApplicationInput = {
   phoneMessagingConsent?: boolean;
   phoneMessagingConsentAt?: string;
   consentVersion?: string;
+  cvResume?: { fileId: string; label: string }[];
   lifecycleStage?: string;
   leadStatus?: string;
   name?: string;

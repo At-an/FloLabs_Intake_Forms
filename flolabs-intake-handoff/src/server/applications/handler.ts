@@ -1,45 +1,71 @@
 import 'server-only';
 import { applicationSchema, fieldErrors } from '@/shared/forms/application';
+import { CV_MESSAGES, MAX_CV_BYTES } from '@/shared/forms/cv';
 import { AppError, errorCodeOf, toPublicError } from '../errors';
 import { TwentyError } from '../twenty/client';
+import { checkCv } from './cv';
 import { submitApplication, type SubmitDeps } from './submit';
 
-// POST /api/applications. Turnstile and rate limits are added in T7 and must run
-// before submitApplication (CLAUDE.md rule 5); CV upload is added in T6c.
+// POST /api/applications as multipart/form-data: `data` = JSON of the form fields (incl. `site`),
+// `cv` = the CV file. Turnstile and rate limits are added in T7 and must run before
+// submitApplication (CLAUDE.md rule 5).
 
-const MAX_BODY_BYTES = 32 * 1024;
+const MAX_DATA_BYTES = 32 * 1024;
+const MAX_REQUEST_BYTES = MAX_CV_BYTES + MAX_DATA_BYTES + 64 * 1024; // CV + fields + multipart overhead
 
 const json = (status: number, body: unknown) =>
   Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
+
+function validationFailed(fields?: Partial<Record<string, string>>) {
+  const { status, body } = toPublicError(new AppError('VALIDATION_FAILED'));
+  // Field messages come from our own rules, never from input or upstream systems.
+  return json(status, { error: { ...body.error, ...(fields && { fields }) } });
+}
 
 export function createApplicationsHandler(deps: SubmitDeps) {
   return async function handle(request: Request): Promise<Response> {
     const started = Date.now();
     try {
-      if (!request.headers.get('content-type')?.toLowerCase().startsWith('application/json')) {
+      if (!request.headers.get('content-type')?.toLowerCase().startsWith('multipart/form-data')) {
         throw new AppError('VALIDATION_FAILED');
       }
-      const text = await request.text();
-      if (new TextEncoder().encode(text).length > MAX_BODY_BYTES) throw new AppError('VALIDATION_FAILED');
+      const declaredLength = Number(request.headers.get('content-length') ?? '0');
+      if (declaredLength > MAX_REQUEST_BYTES) return validationFailed({ cv: CV_MESSAGES.tooLarge });
 
+      let form: FormData;
+      try {
+        form = await request.formData();
+      } catch {
+        throw new AppError('VALIDATION_FAILED');
+      }
+
+      const raw = form.get('data');
+      if (typeof raw !== 'string' || new TextEncoder().encode(raw).length > MAX_DATA_BYTES) {
+        throw new AppError('VALIDATION_FAILED');
+      }
       let body: unknown;
       try {
-        body = JSON.parse(text);
+        body = JSON.parse(raw);
       } catch {
         throw new AppError('VALIDATION_FAILED');
       }
       if (!body || typeof body !== 'object' || Array.isArray(body)) throw new AppError('VALIDATION_FAILED');
 
-      const parsed = applicationSchema.safeParse(body);
-      if (!parsed.success) {
+      const cvEntry = form.get('cv');
+      const [parsed, cvCheck] = await Promise.all([
+        Promise.resolve(applicationSchema.safeParse(body)),
+        checkCv(cvEntry instanceof File ? cvEntry : null),
+      ]);
+      if (!parsed.success || !cvCheck.ok) {
         deps.logger.info('application.invalid', { code: 'VALIDATION_FAILED', durationMs: Date.now() - started });
-        const { status, body: errorBody } = toPublicError(new AppError('VALIDATION_FAILED'));
-        // Field messages come from our own schema, never from input or upstream systems.
-        return json(status, { error: { ...errorBody.error, fields: fieldErrors(parsed.error) } });
+        return validationFailed({
+          ...(parsed.success ? {} : fieldErrors(parsed.error)),
+          ...(!cvCheck.ok && { cv: cvCheck.message }),
+        });
       }
 
       const site = (body as { site?: unknown }).site;
-      const result = await submitApplication(parsed.data, typeof site === 'string' ? site : undefined, deps);
+      const result = await submitApplication(parsed.data, typeof site === 'string' ? site : undefined, cvCheck.cv, deps);
       deps.logger.info('application.request_done', {
         applicationId: result.applicationId,
         status: result.duplicate ? 200 : 201,

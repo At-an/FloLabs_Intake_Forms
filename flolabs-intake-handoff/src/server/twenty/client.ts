@@ -36,13 +36,23 @@ const PERSON_FIELDS = `
   education
 `;
 
-export function createTwentyClient({ baseUrl, apiKey, fetch: fetchImpl = fetch, timeoutMs = 10_000 }: TwentyClientOptions) {
-  const endpoint = `${baseUrl.replace(/\/+$/, '')}/graphql`;
+// File bytes may only go to Twenty itself or, once its storage is on R2 (T6c-0), to R2.
+const R2_HOST = /\.r2\.cloudflarestorage\.com$/;
+const UPLOAD_TIMEOUT_MS = 30_000;
 
-  async function request<T>(op: string, query: string, variables: Record<string, unknown>): Promise<T> {
+export function createTwentyClient({ baseUrl, apiKey, fetch: fetchImpl = fetch, timeoutMs = 10_000 }: TwentyClientOptions) {
+  const root = baseUrl.replace(/\/+$/, '');
+  const twentyOrigin = new URL(root).origin;
+
+  async function request<T>(
+    op: string,
+    query: string,
+    variables: Record<string, unknown>,
+    path: '/graphql' | '/metadata' = '/graphql',
+  ): Promise<T> {
     let response: Response;
     try {
-      response = await fetchImpl(endpoint, {
+      response = await fetchImpl(`${root}${path}`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ query, variables }),
@@ -119,6 +129,58 @@ export function createTwentyClient({ baseUrl, apiKey, fetch: fetchImpl = fetch, 
         { submissionKey },
       );
       return first(data.applications);
+    },
+
+    /**
+     * Uploads a file for a FILES field (e.g. Application.cvResume): create target -> PUT bytes -> complete.
+     * Returns the fileId to store in the field as `[{ fileId, label }]`.
+     */
+    async uploadFile(input: { filename: string; bytes: Uint8Array; fieldMetadataId: string }): Promise<{ fileId: string }> {
+      const { createFileUpload: target } = await request<{
+        createFileUpload: { fileId: string; uploadUrl: string; contentType: string };
+      }>(
+        'twenty.createFileUpload',
+        `mutation CreateFileUpload($filename: String!, $size: Float!, $fieldMetadataId: String!) {
+          createFileUpload(filename: $filename, size: $size, fileFolder: FilesField, fieldMetadataId: $fieldMetadataId) {
+            fileId uploadUrl contentType
+          }
+        }`,
+        { filename: input.filename, size: input.bytes.byteLength, fieldMetadataId: input.fieldMetadataId },
+        '/metadata',
+      );
+
+      let uploadUrl: URL;
+      try {
+        uploadUrl = new URL(target.uploadUrl);
+      } catch {
+        throw new TwentyError('twenty.uploadFile', 0, 'BAD_UPLOAD_URL');
+      }
+      if (uploadUrl.protocol !== 'https:' || (uploadUrl.origin !== twentyOrigin && !R2_HOST.test(uploadUrl.hostname))) {
+        throw new TwentyError('twenty.uploadFile', 0, 'UNEXPECTED_UPLOAD_HOST');
+      }
+
+      let put: Response;
+      try {
+        put = await fetchImpl(uploadUrl, {
+          method: 'PUT',
+          headers: { 'Content-Type': target.contentType },
+          body: input.bytes as BodyInit,
+          signal: AbortSignal.timeout(UPLOAD_TIMEOUT_MS),
+          cache: 'no-store',
+        });
+      } catch (error) {
+        const timedOut = error instanceof DOMException && error.name === 'TimeoutError';
+        throw new TwentyError('twenty.uploadFile', 0, timedOut ? 'TIMEOUT' : 'NETWORK');
+      }
+      if (!put.ok) throw new TwentyError('twenty.uploadFile', put.status, `HTTP_${put.status}`);
+
+      await request<{ completeFileUpload: { id: string } }>(
+        'twenty.completeFileUpload',
+        `mutation CompleteFileUpload($fileId: String!) { completeFileUpload(fileId: $fileId) { id } }`,
+        { fileId: target.fileId },
+        '/metadata',
+      );
+      return { fileId: target.fileId };
     },
 
     async createApplication(input: ApplicationInput): Promise<{ id: string }> {

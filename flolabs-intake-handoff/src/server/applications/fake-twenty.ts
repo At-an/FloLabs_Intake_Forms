@@ -17,6 +17,8 @@ export function fakeTwenty(options: { people?: Person[]; applications?: { id: st
     createPerson: [] as PersonInput[],
     updatePerson: [] as { id: string; input: PersonInput }[],
     createApplication: [] as ApplicationInput[],
+    uploadFile: [] as { filename: string; size: number; fieldMetadataId: string }[],
+    order: [] as string[],
   };
   let seq = 100;
   const nextId = () => `00000000-0000-4000-8000-${String(seq++).padStart(12, '0')}`;
@@ -28,8 +30,14 @@ export function fakeTwenty(options: { people?: Person[]; applications?: { id: st
       const found = applications.find((a) => a.submissionKey === key);
       return found ? { id: found.id, personId: null } : null;
     },
+    uploadFile: async ({ filename, bytes, fieldMetadataId }) => {
+      calls.uploadFile.push({ filename, size: bytes.byteLength, fieldMetadataId });
+      calls.order.push('uploadFile');
+      return { fileId: nextId() };
+    },
     createPerson: async (input) => {
       calls.createPerson.push(input);
+      calls.order.push('createPerson');
       const id = nextId();
       people.push({ id, name: null, emails: null, phones: null, location: null, linkedinLink: null, education: null, ...input });
       return { id };
@@ -40,6 +48,7 @@ export function fakeTwenty(options: { people?: Person[]; applications?: { id: st
     },
     createApplication: async (input) => {
       calls.createApplication.push(input);
+      calls.order.push('createApplication');
       const id = nextId();
       applications.push({ id, submissionKey: input.submissionKey });
       return { id };

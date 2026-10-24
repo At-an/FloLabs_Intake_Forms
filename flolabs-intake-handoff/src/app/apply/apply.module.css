@@ -84,6 +84,20 @@
   border-radius: 6px;
 }
 
+.file {
+  display: block;
+  width: 100%;
+  padding: 10px;
+  font: inherit;
+  background: var(--input-bg);
+  border: 1px dashed var(--border);
+  border-radius: 6px;
+}
+
+.file[aria-invalid='true'] {
+  border: 1px solid var(--error);
+}
+
 .input[aria-invalid='true'] {
   border-color: var(--error);
   box-shadow: 0 0 0 1px var(--error);

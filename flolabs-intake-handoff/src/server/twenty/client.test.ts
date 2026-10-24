@@ -108,6 +108,60 @@ describe('Twenty client', () => {
       'findPersonByEmail',
       'findSiteByKey',
       'updatePerson',
+      'uploadFile',
     ]);
+  });
+
+  describe('uploadFile', () => {
+    const bytes = new TextEncoder().encode('%PDF-1.4 test');
+    const target = (uploadUrl: string) => ({
+      data: { createFileUpload: { fileId: ID, uploadUrl, contentType: 'application/octet-stream' } },
+    });
+
+    function sequence(uploadUrl: string, putStatus = 204) {
+      const seen: { url: string; method: string; body: unknown }[] = [];
+      const responses = [json(target(uploadUrl)), new Response(null, { status: putStatus }), json({ data: { completeFileUpload: { id: ID } } })];
+      const fetchImpl = vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
+        seen.push({ url: String(url), method: init!.method!, body: init!.body });
+        return responses.shift()!;
+      }) as unknown as typeof fetch;
+      return { client: createTwentyClient({ baseUrl: BASE, apiKey: KEY, fetch: fetchImpl }), seen };
+    }
+
+    it('creates the target on /metadata, PUTs the bytes, then completes the upload', async () => {
+      const { client, seen } = sequence('https://crm.example.com/file-upload/abc?token=signed');
+      await expect(client.uploadFile({ filename: 'cv.pdf', bytes, fieldMetadataId: 'field-1' })).resolves.toEqual({ fileId: ID });
+      expect(seen.map((s) => [s.method, s.url])).toEqual([
+        ['POST', 'https://crm.example.com/metadata'],
+        ['PUT', 'https://crm.example.com/file-upload/abc?token=signed'],
+        ['POST', 'https://crm.example.com/metadata'],
+      ]);
+      expect(JSON.parse(String(seen[0]!.body)).variables).toEqual({ filename: 'cv.pdf', size: bytes.byteLength, fieldMetadataId: 'field-1' });
+      expect(seen[1]!.body).toBe(bytes);
+    });
+
+    it('allows an R2 upload URL (storage on R2 after T6c-0)', async () => {
+      const { client } = sequence('https://acct.r2.cloudflarestorage.com/bucket/key?X-Amz-Signature=x');
+      await expect(client.uploadFile({ filename: 'cv.pdf', bytes, fieldMetadataId: 'f' })).resolves.toEqual({ fileId: ID });
+    });
+
+    it.each(['https://evil.example.net/upload', 'http://crm.example.com/file-upload/abc', 'https://r2.cloudflarestorage.com.evil.io/x'])(
+      'refuses to send the file to %s',
+      async (uploadUrl) => {
+        const { client, seen } = sequence(uploadUrl);
+        await expect(client.uploadFile({ filename: 'cv.pdf', bytes, fieldMetadataId: 'f' })).rejects.toMatchObject({
+          code: 'UNEXPECTED_UPLOAD_HOST',
+        });
+        expect(seen).toHaveLength(1);
+      },
+    );
+
+    it('fails with a TwentyError when the PUT is rejected', async () => {
+      const { client } = sequence('https://crm.example.com/file-upload/abc', 403);
+      await expect(client.uploadFile({ filename: 'cv.pdf', bytes, fieldMetadataId: 'f' })).rejects.toMatchObject({
+        op: 'twenty.uploadFile',
+        status: 403,
+      });
+    });
   });
 });

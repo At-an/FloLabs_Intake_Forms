@@ -5,6 +5,7 @@ import { CONSENT_TEXT, HR_EMAIL, LIMITS } from '@/shared/config/application';
 import { PROGRAMS_BY_TRACK } from '@/shared/config/programs';
 import { SOURCES } from '@/shared/config/sources';
 import { applicationSchema, fieldErrors } from '@/shared/forms/application';
+import { CV_ACCEPT, cvProblem } from '@/shared/forms/cv';
 import styles from './apply.module.css';
 
 type Country = { value: string; label: string; callingCode: string };
@@ -62,6 +63,7 @@ const FIELD_ORDER = [
   'linkedinUrl',
   'education',
   'programs',
+  'cv',
   'source',
   'sourceDetail',
   'referralName',
@@ -95,6 +97,7 @@ export function ApplicationForm({ siteKey, countries }: { siteKey?: string; coun
   const id = (key: string) => `${idPrefix}-${key.replace('.', '-')}`;
 
   const [values, setValues] = useState<Values>(EMPTY);
+  const [cvFile, setCvFile] = useState<File | null>(null);
   const [touched, setTouched] = useState<ReadonlySet<string>>(new Set());
   const [submitted, setSubmitted] = useState(false);
   const [serverErrors, setServerErrors] = useState<Partial<Record<string, string>>>({});
@@ -105,10 +108,11 @@ export function ApplicationForm({ siteKey, countries }: { siteKey?: string; coun
   const summaryRef = useRef<HTMLDivElement>(null);
   const doneRef = useRef<HTMLHeadingElement>(null);
 
-  const errors = useMemo(() => {
+  const errors = useMemo((): Partial<Record<string, string>> => {
     const result = applicationSchema.safeParse(toRequest(values, submissionKey));
-    return { ...(result.success ? {} : fieldErrors(result.error)), ...serverErrors };
-  }, [values, submissionKey, serverErrors]);
+    const cv = cvProblem(cvFile);
+    return { ...(result.success ? {} : fieldErrors(result.error)), ...(cv && { cv }), ...serverErrors };
+  }, [values, cvFile, submissionKey, serverErrors]);
 
   const visibleErrors = FIELD_ORDER.filter((key) => errors[key] && (submitted || touched.has(key)));
   const errorFor = (key: FieldKey) => (visibleErrors.includes(key) ? errors[key] : undefined);
@@ -141,30 +145,32 @@ export function ApplicationForm({ siteKey, countries }: { siteKey?: string; coun
 
     const request = toRequest(values, submissionKey);
     const check = applicationSchema.safeParse(request);
-    if (!check.success) {
-      requestAnimationFrame(() => focusFirstError(fieldErrors(check.error)));
+    const cvError = cvProblem(cvFile);
+    if (!check.success || cvError || !cvFile) {
+      const found = { ...(check.success ? {} : fieldErrors(check.error)), ...(cvError && { cv: cvError }) };
+      requestAnimationFrame(() => focusFirstError(found));
       return;
     }
 
     setStatus('sending');
     try {
-      const response = await fetch('/api/applications', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...request, site: siteKey }),
-      });
-      const body = await response.json().catch(() => null);
+      // Multipart: the browser sets the Content-Type boundary itself.
+      const body = new FormData();
+      body.set('data', JSON.stringify({ ...request, site: siteKey }));
+      body.set('cv', cvFile);
+      const response = await fetch('/api/applications', { method: 'POST', body });
+      const result = await response.json().catch(() => null);
       if (response.ok) {
         setStatus('done');
         requestAnimationFrame(() => doneRef.current?.focus());
         return;
       }
       setStatus('idle');
-      if (response.status === 400 && body?.error?.fields) {
-        setServerErrors(body.error.fields);
-        requestAnimationFrame(() => focusFirstError(body.error.fields));
+      if (response.status === 400 && result?.error?.fields) {
+        setServerErrors(result.error.fields);
+        requestAnimationFrame(() => focusFirstError(result.error.fields));
       }
-      setFormError(typeof body?.error?.message === 'string' ? body.error.message : GENERIC_ERROR);
+      setFormError(typeof result?.error?.message === 'string' ? result.error.message : GENERIC_ERROR);
     } catch {
       setStatus('idle');
       setFormError('We could not reach the server. Check your connection and try again.');
@@ -368,6 +374,39 @@ export function ApplicationForm({ siteKey, countries }: { siteKey?: string; coun
             </fieldset>
           ))}
         </div>
+      </fieldset>
+
+      <fieldset className={styles.section}>
+        <legend className={styles.sectionTitle}>Your CV</legend>
+        <Field
+          id={id('cv')}
+          label="CV / Resume"
+          required
+          hint="PDF or Word (.docx), up to 5 MB."
+          error={errorFor('cv')}
+          ok={isOk('cv', cvFile !== null)}
+        >
+          <input
+            id={id('cv')}
+            name="cv"
+            type="file"
+            accept={CV_ACCEPT}
+            required
+            aria-invalid={Boolean(errorFor('cv'))}
+            aria-describedby={describedBy('cv', true)}
+            onChange={(e) => {
+              setCvFile(e.target.files?.[0] ?? null);
+              touch('cv');
+              if (serverErrors.cv) setServerErrors((current) => Object.fromEntries(Object.entries(current).filter(([k]) => k !== 'cv')));
+            }}
+            className={styles.file}
+          />
+        </Field>
+        {cvFile && !errorFor('cv') && (
+          <p className={styles.hint}>
+            Selected: <strong>{cvFile.name}</strong> ({Math.max(1, Math.round(cvFile.size / 1024))} KB)
+          </p>
+        )}
       </fieldset>
 
       <fieldset className={styles.section}>

@@ -2,7 +2,12 @@ import { describe, expect, it } from 'vitest';
 import { applicationSchema, type ApplicationFormData, type ApplicationFormInput } from '@/shared/forms/application';
 import type { Person } from '../twenty/types';
 import { captureLogger, fakeTwenty, SITES } from './fake-twenty';
+import type { CheckedCv } from './cv';
 import { submitApplication } from './submit';
+import { PDF_BYTES } from './test-files';
+import { TwentyError } from '../twenty/client';
+
+const CV: CheckedCv = { kind: 'pdf', bytes: PDF_BYTES, label: 'Jane Doe CV.pdf' };
 
 const NOW = new Date('2026-10-24T10:00:00.000Z');
 const KEY = '3f2b8c1e-9a4d-4e7f-8b2a-1c5d6e7f8a9b';
@@ -29,7 +34,7 @@ const data = (overrides: Partial<ApplicationFormInput> = {}): ApplicationFormDat
 
 const run = (fake: ReturnType<typeof fakeTwenty>, siteKey?: string, input = data()) => {
   const { logger, lines } = captureLogger();
-  return { promise: submitApplication(input, siteKey, { twenty: fake.twenty, logger, now: () => NOW }), lines };
+  return { promise: submitApplication(input, siteKey, CV, { twenty: fake.twenty, logger, now: () => NOW }), lines };
 };
 
 describe('submitApplication: new applicant', () => {
@@ -80,6 +85,38 @@ describe('submitApplication: new applicant', () => {
     expect(app.communicationConsentAt).toBe(NOW.toISOString());
     expect(app.phoneMessagingConsent).toBe(false);
     expect(app).not.toHaveProperty('phoneMessagingConsentAt');
+  });
+});
+
+describe('submitApplication: CV (T6c)', () => {
+  it('uploads the CV into Application.cvResume before creating any record', async () => {
+    const fake = fakeTwenty();
+    await run(fake).promise;
+    expect(fake.calls.uploadFile).toEqual([
+      { filename: 'Jane Doe CV.pdf', size: PDF_BYTES.byteLength, fieldMetadataId: 'b0449d1e-9e4f-42e5-8ba2-f53b9c4f8de8' },
+    ]);
+    expect(fake.calls.order).toEqual(['uploadFile', 'createPerson', 'createApplication']);
+    expect(fake.calls.createApplication[0]!.cvResume).toEqual([{ fileId: expect.any(String), label: 'Jane Doe CV.pdf' }]);
+  });
+
+  it('creates no Person and no Application when the CV upload fails', async () => {
+    const fake = fakeTwenty();
+    const failing = {
+      ...fake.twenty,
+      uploadFile: async () => {
+        throw new TwentyError('twenty.uploadFile', 500, 'HTTP_500');
+      },
+    };
+    const { logger } = captureLogger();
+    await expect(submitApplication(data(), undefined, CV, { twenty: failing, logger })).rejects.toBeInstanceOf(TwentyError);
+    expect([fake.calls.createPerson, fake.calls.updatePerson, fake.calls.createApplication]).toEqual([[], [], []]);
+  });
+
+  it('does not upload the CV again for a repeated submission', async () => {
+    const fake = fakeTwenty();
+    await run(fake).promise;
+    await run(fake).promise;
+    expect(fake.calls.uploadFile).toHaveLength(1);
   });
 });
 
@@ -185,6 +222,7 @@ describe('submitApplication: logging', () => {
     for (const pii of ['jane.doe', 'Jane', 'Doe', '5125550142', 'Austin', 'Ange', 'linkedin']) {
       expect(output).not.toContain(pii);
     }
-    expect(lines.map((l) => JSON.parse(l).event)).toEqual(['person.created', 'application.created']);
+    expect(output).not.toContain('CV.pdf');
+    expect(lines.map((l) => JSON.parse(l).event)).toEqual(['cv.uploaded', 'person.created', 'application.created']);
   });
 });

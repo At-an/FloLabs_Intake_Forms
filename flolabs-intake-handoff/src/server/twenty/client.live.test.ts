@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { createTwentyClient, TwentyError } from './client';
 
 // Read-only checks against the live Twenty instance. Never writes records.
@@ -7,9 +7,9 @@ import { createTwentyClient, TwentyError } from './client';
 const live = Boolean(process.env.TWENTY_BASE_URL && process.env.TWENTY_API_KEY);
 
 describe.skipIf(!live)('Twenty client (live, read-only)', () => {
-  const client = createTwentyClient({
-    baseUrl: process.env.TWENTY_BASE_URL ?? '',
-    apiKey: process.env.TWENTY_API_KEY ?? '',
+  let client: ReturnType<typeof createTwentyClient>;
+  beforeAll(() => {
+    client = createTwentyClient({ baseUrl: process.env.TWENTY_BASE_URL!, apiKey: process.env.TWENTY_API_KEY! });
   });
 
   it('finds the POC Site by its site key', async () => {
@@ -26,7 +26,7 @@ describe.skipIf(!live)('Twenty client (live, read-only)', () => {
   });
 
   it('reports a rejected API key as a TwentyError', async () => {
-    const bad = createTwentyClient({ baseUrl: process.env.TWENTY_BASE_URL ?? '', apiKey: 'invalid-key-for-live-test' });
+    const bad = createTwentyClient({ baseUrl: process.env.TWENTY_BASE_URL!, apiKey: 'invalid-key-for-live-test' });
     const error = await bad.findSiteByKey('flolabs_international').catch((e: unknown) => e);
     expect(error).toBeInstanceOf(TwentyError);
   });

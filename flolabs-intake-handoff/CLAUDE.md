@@ -93,7 +93,7 @@ Existing: **People** (native), **Applications** (custom; belongs to one Person a
 
 **CV:**
 - PDF/DOCX only, verified by file signature, max 5 MB.
-- **Path A (preferred, API support confirmed in T1):** upload into `Application.cvResume` via `createFileUpload` / `completeFileUpload`, with Twenty's storage on R2 (`STORAGE_TYPE=S_3`, `STORAGE_S3_ENDPOINT`; server change done by the team lead, T6c-0).
+- **Path A (in use since T6c, verified live 2026-10-24):** upload into `Application.cvResume` via `createFileUpload` / `completeFileUpload`, with Twenty's storage on R2 (`STORAGE_TYPE=S_3`, `STORAGE_S3_ENDPOINT`; server change done by the team lead, T6c-0).
 - **Path B (fallback, if the API cannot upload attachments):** private R2 key on the Application, plus a "View CV" overlay behind Cloudflare Access with a short-lived presigned URL. DOCX is converted to PDF at upload.
 - If the CV upload fails, no Application is created.
 
@@ -112,7 +112,8 @@ POC scope: **the Application form first.** Forms 1-3, Contact Us and Newsletter 
 3. T3 scaffold + typed Twenty client: **done** (2026-10-24, branch `t3-scaffold-twenty-client`).
 4. T4 shared config + Zod schema: **done** (2026-10-24). Consent checkbox wording approved (`src/shared/config/application.ts`).
 5. T5 `POST /api/applications` and T6 `/apply` form: **done** (2026-10-24). Twenty formats confirmed by a test write: `addressCountry` = English country name; phone = national number + ISO country code + calling code.
-6. Next: T6c-0 (Twenty storage on R2, team lead) and T6c (CV upload), then T7 (Turnstile + rate limits).
+6. T6c CV upload (path A): **done** (2026-10-24). T6c-0 (Twenty storage on R2) is still for the team lead; the app needs no change for it. T6d is not needed.
+7. Next: T7 (Turnstile + rate limits).
 
 Recommended skills per step: source-driven-development (T1), api-and-interface-design (T5), security-and-hardening (T5, T7, T15), incremental-implementation, frontend-ui-engineering (T6), test-driven-development, flolabs-code-reviewer before merge, documentation-and-adrs (T16).
 

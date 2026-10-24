@@ -77,13 +77,13 @@ Checkpoint A: tests and build pass; you review the schema map. (Schema decisions
 - AC: Twenty server + worker use `STORAGE_TYPE=S_3`, `STORAGE_S3_ENDPOINT=https://<account>.r2.cloudflarestorage.com`, bucket and R2 keys; existing local files copied to the bucket first.
 - Verify: upload an attachment in the Twenty UI, see it in R2, open it again from Twenty. Needs server access + a Twenty backup before the change.
 
-**T6c CV upload.** M
+**T6c CV upload.** M. **Done 2026-10-24 (path A)**: multipart request (`data` JSON + `cv` file); signature check (PDF `%PDF-`, DOCX = ZIP with `word/document.xml` + `[Content_Types].xml`), 5 MB cap, safe file label; CV uploaded via `createFileUpload` -> PUT -> `completeFileUpload` before any record is written, then stored in `Application.cvResume`. Upload host must be Twenty or `*.r2.cloudflarestorage.com`. Live run: Application `503ae559-7e05-42b7-8c79-dc3632633b2f`, download identical; unsigned file URL returns 403; renamed .exe rejected.
 - Common AC: PDF/DOCX only (checked by file signature, not just extension), max 5 MB; upload failure means no Application is created.
 - Path A (preferred): CV uploaded with `createFileUpload` (fileFolder `FilesField`, the `cvResume` field id) -> PUT -> `completeFileUpload`, then saved in `Application.cvResume`; HR opens it on the Application record.
 - Path B (fallback): CV stored in a private R2 bucket under a random key; key saved on the Application; T6d provides the viewer.
 - Verify: tests for wrong type, oversize and renamed .exe; file visible in R2; no public URL.
 
-**T6d CV viewer overlay (path B only).** M
+**T6d CV viewer overlay (path B only).** M. **Not needed**: path A works (2026-10-24).
 - AC: "View CV" link on the Application opens an overlay; access requires a logged-in FloLabs user (Cloudflare Access); the file is served through a short-lived presigned URL; DOCX is converted to PDF at upload so every CV displays in the overlay.
 - Verify: logged-out request is refused; link expires after 15 minutes.
 

@@ -96,7 +96,7 @@ export function applicationName(data: ApplicationFormData): string {
 
 export function toApplicationInput(
   data: ApplicationFormData,
-  refs: { personId: string; site: SiteResolution; submittedAt: string },
+  refs: { personId: string; site: SiteResolution; submittedAt: string; cv: { fileId: string; label: string } },
 ): ApplicationInput {
   return {
     name: applicationName(data),
@@ -114,6 +114,7 @@ export function toApplicationInput(
     sourceFormId: APPLICATION_FORM.sourceFormId,
     formVersion: APPLICATION_FORM.formVersion,
     consentVersion: APPLICATION_FORM.consentVersion,
+    cvResume: [refs.cv],
     communicationConsent: data.marketingOptIn,
     ...(data.marketingOptIn && { communicationConsentAt: refs.submittedAt }),
     phoneMessagingConsent: data.smsOptIn,
