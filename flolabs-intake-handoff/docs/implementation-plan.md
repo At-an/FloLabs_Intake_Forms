@@ -54,7 +54,7 @@ Checkpoint A: tests and build pass; you review the schema map. (Schema decisions
 
 ## Phase 1: Application slice (= briefing POC)
 
-**T4 Shared config + Zod schema (programs, tracks, sources).** S
+**T4 Shared config + Zod schema (programs, tracks, sources).** S. **Done 2026-10-24**: `src/shared/config` (40 programs -> 5 tracks, 26 sources, countries, consent text + versions) and `src/shared/forms/application.ts` (one schema for browser and server; phone -> E.164 via libphonenumber-js; LinkedIn host check; Other/Referral rules). 34 schema/config tests; config also checked against the snapshot and, in `npm run test:live`, against live Twenty. CV validated in T6c.
 - AC: one program-to-track map (40 programs) used everywhere; conditional rules (Other -> detail, Referral -> name) enforced.
 - AC (risk mitigation): each option has `{value, label}`; the UI shows labels, the server only ever sends API values to Twenty; a test fails if any config value is missing from the live Twenty options.
 - Verify: unit tests for each rule and for normalization (email, phone E.164).

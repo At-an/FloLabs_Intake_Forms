@@ -110,7 +110,8 @@ POC scope: **the Application form first.** Forms 1-3, Contact Us and Newsletter 
 1. T1 schema verification: **done** (`docs/twenty-schema.md`). Checkpoint A decisions: **approved** (2026-10-24).
 2. T2a Application schema changes: **done** (2026-10-24). T2b (new objects, Person consent fields) waits for the revised POC.
 3. T3 scaffold + typed Twenty client: **done** (2026-10-24, branch `t3-scaffold-twenty-client`).
-4. Next: Phase 1 (T4-T7) as in the plan, starting with T4 (shared config + Zod schema).
+4. T4 shared config + Zod schema: **done** (2026-10-24). Consent checkbox wording approved (`src/shared/config/application.ts`).
+5. Next: T5 `POST /api/applications` (confirm the `addressCountry` and phone formats with one test write).
 
 Recommended skills per step: source-driven-development (T1), api-and-interface-design (T5), security-and-hardening (T5, T7, T15), incremental-implementation, frontend-ui-engineering (T6), test-driven-development, flolabs-code-reviewer before merge, documentation-and-adrs (T16).
 
