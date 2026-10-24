@@ -14,7 +14,7 @@ if (!base || !key || !outFile) {
   process.exit(1);
 }
 
-const OBJECTS = ['person', 'application', 'site', 'attachment', 'subscription', 'inquiry', 'formSubmission', 'reference'];
+const OBJECTS = ['person', 'application', 'site', 'attachment', 'inquiry', 'formSubmission', 'reference'];
 
 async function gql(endpoint, query) {
   const res = await fetch(`${base}${endpoint}`, {

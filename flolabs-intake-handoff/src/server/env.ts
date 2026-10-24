@@ -1,8 +1,7 @@
 import 'server-only';
 import { z } from 'zod';
 
-// Server environment, validated once. Later tasks add their variables here
-// (LINK_TOKEN_SECRET in T10).
+// Server environment, validated once.
 
 /**
  * Cloudflare's published Turnstile test keys (always pass). Used only outside production
@@ -23,6 +22,8 @@ const baseSchema = z.object({
   // Header carrying the real client IP when the app runs behind a proxy (T7 rate limits).
   // Unset: no header is trusted (local development: all requests share one IP bucket).
   TRUSTED_IP_HEADER: z.enum(['cf-connecting-ip', 'x-forwarded-for', 'x-real-ip']).optional(),
+  // Signs Form 1-3 links (T10). At least 32 characters; rotating it revokes all unused links.
+  LINK_TOKEN_SECRET: z.string().min(32).optional(),
 });
 
 const envSchema = baseSchema
@@ -32,6 +33,10 @@ const envSchema = baseSchema
   })
   .refine((env) => env.NODE_ENV !== 'production' || env.TURNSTILE_SECRET_KEY, {
     path: ['TURNSTILE_SECRET_KEY'],
+    message: 'required in production',
+  })
+  .refine((env) => env.NODE_ENV !== 'production' || env.LINK_TOKEN_SECRET, {
+    path: ['LINK_TOKEN_SECRET'],
     message: 'required in production',
   })
   .transform(({ TURNSTILE_SITE_KEY, TURNSTILE_SECRET_KEY, ...env }) => ({

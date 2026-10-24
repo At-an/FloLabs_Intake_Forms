@@ -76,6 +76,13 @@ export type ApplicationInput = {
 
 export type ApplicationRef = { id: string; personId: string | null };
 
+/** What a Form 1/2/3 link needs: who the applicant is and which programs they chose (pre-fill, D4). */
+export type ApplicationForLink = {
+  id: string;
+  positionAppliedFor: string[];
+  person: { id: string; name: FullName | null; emails: Emails | null } | null;
+};
+
 export type InquiryInput = {
   name: string;
   subject: string;

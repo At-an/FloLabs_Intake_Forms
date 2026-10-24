@@ -39,7 +39,7 @@ Schema verification (T1) -> Application schema changes (T2a) -> Twenty client + 
 - Verify: re-run `scripts/t1-schema-probe.mjs`, diff against `docs/snapshots/twenty-schema-2026-10-23.json`; only the changes above; nothing deleted or renamed.
 - Depends: T1.
 
-**T2b New objects (revised POC).** M. **Partly done 2026-10-24** (`scripts/t2b-inquiry-consent.mjs`, snapshot `twenty-schema-2026-10-24-t2b.json`): Inquiry object + 4 Person consent fields. Form Submission and Reference still to come (Forms 1-3).
+**T2b New objects (revised POC).** M. **Done 2026-10-24**: Inquiry + 4 Person consent fields (`scripts/t2b-inquiry-consent.mjs`), Inquiry site fields (T2d), Form Submission + Reference (`scripts/t2e-form-submission-reference.mjs`, snapshot `twenty-schema-2026-10-24-t2e.json`). Twenty forbids commas in option labels: the Twenty label of track `BUSINESS_GROWTH_ENTREPRENEURSHIP` is "Business Management / Growth & Entrepreneurship" (forms keep the official name); `stillInterested` labels are "Yes definitely" / "Yes but I have questions". Reference's built-in `name` field is labelled "Full Name" and holds the reference's full name.
 - AC: Inquiry, Form Submission (incl. `submissionKey`, `answers` RAW_JSON, `answersSummary` RICH_TEXT) and Reference exist as in spec section 7; Person consent fields added (D17). No Subscription object.
 - Verify: same snapshot diff.
 - Depends: T2a.
@@ -105,11 +105,11 @@ Checkpoint C.
 
 ## Phase 3: Token-gated forms (revised POC)
 
-**T10 Signed link tokens.** S
+**T10 Signed link tokens.** S. **Done 2026-10-24**: `src/server/forms/link-tokens.ts` (HMAC-SHA256, no expiry, rotating `LINK_TOKEN_SECRET` revokes unused links), `open-link.ts` (signature -> form -> Application exists -> no Form Submission of that type), pages `/contacted`, `/before-meeting`, `/masterclass` with friendly messages (not valid / not found / already sent / temporarily unavailable), `npm run make-link -- <applicationId> <form>`. Live: tampered, wrong-form and missing tokens refused; a valid link reaches the single-use check, which waits for the Form Submission permission.
 - AC: CLI/script generates a link per Application + formType; no expiry; tampered or reused tokens get a friendly error page.
 - Verify: unit tests for tamper/reuse.
 
-**T11 Form engine: config, merge and pre-fill logic.** M
+**T11 Form engine: config, merge and pre-fill logic.** M. **Done 2026-10-24** (`src/shared/forms/engine`): `buildForm` (intro, one section per track with track-wide + only the applicant's program questions, closing; cross-track merge), track statements, `prefillFor`, `validateFormConfig`, `answersSchema` (required, ranges, options, showIf), `renderSummary` (markdown for answersSummary), `typedFieldValues`. 18 table-driven tests incl. cross-track.
 - AC: for any set of positions, returns ordered sections (general, track sections with only the applicant's programs, closing) and the track statements.
 - Verify: table-driven tests, including a cross-track applicant.
 

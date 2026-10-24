@@ -239,6 +239,16 @@ The API supports server-side file upload through GraphQL `/metadata`:
 
 **Permission gap (2026-10-24):** the API key's role cannot read or write Inquiry records (FORBIDDEN). An admin must allow it in Twenty Settings -> Roles -> (the key's role) -> object permissions.
 
+## Form Submission (`formSubmission` / `formSubmissions`), created 2026-10-24
+
+`name` TEXT, `formType` SELECT (`CONTACTED`, `BEFORE_MEETING`, `MASTERCLASS`), `tracks` MULTI_SELECT (5 track values; Twenty label for `BUSINESS_GROWTH_ENTREPRENEURSHIP` is "Business Management / Growth & Entrepreneurship" because option labels may not contain commas), `formVersion` TEXT, `submittedAt` DATE_TIME, `submissionKey` TEXT, `answers` RAW_JSON, `answersSummary` RICH_TEXT, `hoursPerWeek` NUMBER, `commitmentDuration` SELECT (`UNDER_3_MONTHS`, `MONTHS_3_TO_6`, `MONTHS_6_TO_12`, `OVER_12_MONTHS`), `remoteOk` / `canAttendMeetings` / `continueToInterview` / `referencesContactAllowed` BOOLEAN, `stillInterested` SELECT (`YES_DEFINITELY`, `YES_WITH_QUESTIONS`, `UNSURE`, `NO`), `canMeetCommitment` SELECT (`YES`, `NO`, `NEED_TO_DISCUSS`), `application`/`applicationId` RELATION many-to-one -> `application.formSubmissions`. GraphQL enum for formType: `FormSubmissionFormTypeEnum`.
+
+## Reference (`reference` / `references`), created 2026-10-24
+
+`name` TEXT labelled **"Full Name"** (the reference's full name), `title` TEXT, `organization` TEXT, `relationship` TEXT, `email` EMAILS, `phone` PHONES, `knownDuration` SELECT (`MONTHS_0_TO_6`, `MONTHS_6_TO_12`, `YEARS_1_TO_2`, `YEARS_2_TO_3`), `application`/`applicationId` RELATION many-to-one -> `application.references`.
+
+**Permission gap (2026-10-24):** like Inquiry, the API key's role cannot read or write Form Submission and Reference records until an admin allows it.
+
 ## Person consent fields, created in T2b 2026-10-24
 
 `communicationConsent` BOOLEAN (default false), `communicationConsentAt` DATE_TIME, `consentVersion` TEXT, `communicationConsentSite` TEXT (site key). Filled by the Newsletter and by the Application marketing opt-in when empty (spec D17).

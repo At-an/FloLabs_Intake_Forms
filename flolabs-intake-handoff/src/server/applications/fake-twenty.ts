@@ -10,7 +10,14 @@ export const SITES: Site[] = [
   { id: '00000000-0000-4000-8000-000000000003', siteId: 'flomad', active: false },
 ];
 
-export function fakeTwenty(options: { people?: Person[]; applications?: { id: string; submissionKey: string }[] } = {}) {
+export function fakeTwenty(
+  options: {
+    people?: Person[];
+    applications?: { id: string; submissionKey: string }[];
+    formSubmissions?: { id: string; applicationId: string; formType: string }[];
+  } = {},
+) {
+  const formSubmissions = [...(options.formSubmissions ?? [])];
   const people = [...(options.people ?? [])];
   const applications = [...(options.applications ?? [])];
   const calls = {
@@ -49,6 +56,14 @@ export function fakeTwenty(options: { people?: Person[]; applications?: { id: st
       const index = people.findIndex((p) => p.id === id);
       if (index >= 0) people[index] = { ...people[index]!, ...input };
       return { id };
+    },
+    findApplicationForLink: async (id) => {
+      const found = applications.find((a) => a.id === id);
+      return found ? { id: found.id, positionAppliedFor: [], person: null } : null;
+    },
+    findFormSubmissionFor: async (applicationId, formType) => {
+      const found = formSubmissions.find((s) => s.applicationId === applicationId && s.formType === formType);
+      return found ? { id: found.id } : null;
     },
     findInquiryBySubmissionKey: async (key) => {
       const found = inquiries.find((i) => i.submissionKey === key);

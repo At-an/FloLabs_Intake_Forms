@@ -13,7 +13,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:live": "node --env-file=.env.local node_modules/vitest/vitest.mjs run live.test"
+    "test:live": "node --env-file=.env.local node_modules/vitest/vitest.mjs run live.test",
+    "make-link": "node --env-file=.env.local --conditions=react-server scripts/make-form-link.mts"
   },
   "dependencies": {
     "libphonenumber-js": "1.13.15",

@@ -40,15 +40,20 @@ describe('parseEnv', () => {
     expect([env.TURNSTILE_SITE_KEY, env.TURNSTILE_SECRET_KEY]).toEqual([TURNSTILE_TEST_KEYS.siteKey, TURNSTILE_TEST_KEYS.secretKey]);
   });
 
-  it('requires real Turnstile keys in production', () => {
+  it('requires real Turnstile keys and the link secret in production', () => {
     const production = { NODE_ENV: 'production', TWENTY_BASE_URL: 'https://crm.example.com', TWENTY_API_KEY: validKey };
     try {
       parseEnv(production);
       expect.unreachable();
     } catch (error) {
-      expect((error as EnvError).invalidVariables).toEqual(['TURNSTILE_SITE_KEY', 'TURNSTILE_SECRET_KEY']);
+      expect((error as EnvError).invalidVariables).toEqual(['TURNSTILE_SITE_KEY', 'TURNSTILE_SECRET_KEY', 'LINK_TOKEN_SECRET']);
     }
-    const env = parseEnv({ ...production, TURNSTILE_SITE_KEY: '0x4AAAAAAAreal', TURNSTILE_SECRET_KEY: '0x4AAAAAAAsecret' });
+    const env = parseEnv({
+      ...production,
+      TURNSTILE_SITE_KEY: '0x4AAAAAAAreal',
+      TURNSTILE_SECRET_KEY: '0x4AAAAAAAsecret',
+      LINK_TOKEN_SECRET: 's'.repeat(32),
+    });
     expect(env.TURNSTILE_SITE_KEY).toBe('0x4AAAAAAAreal');
   });
 
@@ -57,5 +62,8 @@ describe('parseEnv', () => {
     expect(parseEnv({ ...base, TRUSTED_IP_HEADER: 'cf-connecting-ip' }).TRUSTED_IP_HEADER).toBe('cf-connecting-ip');
     expect(() => parseEnv({ ...base, TRUSTED_IP_HEADER: 'x-anything' })).toThrow(/TRUSTED_IP_HEADER/);
   });
-});
 
+  it('rejects a link secret shorter than 32 characters', () => {
+    expect(() => parseEnv({ TWENTY_BASE_URL: 'https://crm.example.com', TWENTY_API_KEY: validKey, LINK_TOKEN_SECRET: 'short' })).toThrow(/LINK_TOKEN_SECRET/);
+  });
+});

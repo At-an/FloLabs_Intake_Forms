@@ -1,5 +1,5 @@
 import 'server-only';
-import type { ApplicationInput, ApplicationRef, InquiryInput, Person, PersonInput, Site } from './types';
+import type { ApplicationForLink, ApplicationInput, ApplicationRef, InquiryInput, Person, PersonInput, Site } from './types';
 
 // Purpose-built Twenty client (CLAUDE.md rule 3): named operations only, no generic proxy.
 // All values travel as GraphQL variables; the REST filter syntax breaks on characters
@@ -194,6 +194,32 @@ export function createTwentyClient({ baseUrl, apiKey, fetch: fetchImpl = fetch, 
         { data: input },
       );
       return data.createApplication;
+    },
+
+    async findApplicationForLink(id: string): Promise<ApplicationForLink | null> {
+      const data = await request<{ applications: Connection<ApplicationForLink> }>(
+        'twenty.findApplicationForLink',
+        `query FindApplicationForLink($id: UUID!) {
+          applications(filter: { id: { eq: $id } }, first: 1) {
+            edges { node { id positionAppliedFor person { id name { firstName lastName } emails { primaryEmail } } } }
+          }
+        }`,
+        { id },
+      );
+      return first(data.applications);
+    },
+
+    async findFormSubmissionFor(applicationId: string, formType: string): Promise<{ id: string } | null> {
+      const data = await request<{ formSubmissions: Connection<{ id: string }> }>(
+        'twenty.findFormSubmissionFor',
+        `query FindFormSubmissionFor($applicationId: UUID!, $formType: FormSubmissionFormTypeEnum!) {
+          formSubmissions(filter: { applicationId: { eq: $applicationId }, formType: { eq: $formType } }, first: 1) {
+            edges { node { id } }
+          }
+        }`,
+        { applicationId, formType },
+      );
+      return first(data.formSubmissions);
     },
 
     async findInquiryBySubmissionKey(submissionKey: string): Promise<{ id: string } | null> {

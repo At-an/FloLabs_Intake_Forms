@@ -106,6 +106,8 @@ describe('Twenty client', () => {
       'createInquiry',
       'createPerson',
       'findApplicationBySubmissionKey',
+      'findApplicationForLink',
+      'findFormSubmissionFor',
       'findInquiryBySubmissionKey',
       'findPersonByEmail',
       'findSiteByKey',
