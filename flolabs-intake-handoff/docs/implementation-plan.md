@@ -87,7 +87,7 @@ Checkpoint A: tests and build pass; you review the schema map. (Schema decisions
 - AC: "View CV" link on the Application opens an overlay; access requires a logged-in FloLabs user (Cloudflare Access); the file is served through a short-lived presigned URL; DOCX is converted to PDF at upload so every CV displays in the overlay.
 - Verify: logged-out request is refused; link expires after 15 minutes.
 
-**T7 Turnstile + rate limits.** S. **Done 2026-10-24**: server order IP limit (10 / 10 min) -> validation -> email limit (5 valid submissions / 30 min, hashed keys; changed 2026-10-24) -> Turnstile siteverify (action `application`, fails closed) -> Twenty. 403 BOT_CHECK_FAILED / 429 + Retry-After. Widget on `/apply`, reset after each attempt. Dev uses Cloudflare test keys; production refuses to start without real keys. In-flight lock per submissionKey closes the T5 race. Limits are in memory (one server); several servers need a shared store or Cloudflare rate-limiting rules.
+**T7 Turnstile + rate limits.** S. **Done 2026-10-24**: server order IP limit (50 / 10 min since 2026-10-24; first 10) -> validation -> email limit (5 valid submissions / 30 min, hashed keys; changed 2026-10-24) -> Turnstile siteverify (action `application`, fails closed) -> Twenty. 403 BOT_CHECK_FAILED / 429 + Retry-After. Widget on `/apply`, reset after each attempt. Dev uses Cloudflare test keys; production refuses to start without real keys. In-flight lock per submissionKey closes the T5 race. Limits are in memory (one server); several servers need a shared store or Cloudflare rate-limiting rules.
 - AC: server rejects missing/invalid Turnstile tokens before any Twenty or R2 call; rate limit per IP and per email; idempotency via submissionKey (T5).
 - Verify: test with Cloudflare's always-fail key; a burst of requests gets HTTP 429.
 
@@ -137,7 +137,8 @@ Checkpoint D: one applicant (cross-track) goes Application -> Form 1 -> Form 2 -
   1. Request bodies are read with a hard cap (`readBodyCapped`): before, a body without (or with a false) Content-Length was buffered whole.
   2. Applicant text in `answersSummary` is markdown-escaped and links are normalised, so answers cannot add links, tracking images or HTML to what HR opens in Twenty.
   3. Security headers: Content-Security-Policy (self + Turnstile only, no plugins, base-uri/form-action locked), HSTS (production), Permissions-Policy; verified in a production build with a browser (no violations, Turnstile works).
-  4. `TRUSTED_IP_HEADER` required in production: without it all visitors shared one rate-limit bucket (10 / 10 min for the whole site).
+  4. `TRUSTED_IP_HEADER` required in production: without it all visitors shared one rate-limit bucket (the per-IP limit for the whole site).
+  6. Per-IP limit raised from 10 to **50 requests per 10 minutes** (FloLabs, 2026-10-24); per email / per Application stays 5 per 30 minutes. Both in `RATE_LIMITS` (`src/server/rate-limit.ts`).
   5. `.gitignore` ignores every `.env*` file except `.env.example`.
 - Known limitations (accepted for launch, see `docs/production-launch.md`): CSP allows inline scripts (Next.js bootstrap; a nonce would remove it); rate limits and the per-link queue are in memory, so run **one** app instance; R2 bucket policy is the team lead's (checked indirectly: unsigned CV URL returns 403, T6c); data retention/deletion policy to be set by FloLabs (T16).
 

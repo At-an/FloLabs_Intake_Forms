@@ -5,6 +5,18 @@ import { createHash } from 'node:crypto';
 // with several servers, move it to a shared store or to Cloudflare rate-limiting rules.
 // Keys are hashed, so no email or IP address is kept in memory as plain text.
 
+/**
+ * The limits of every public form (one place, used by all four routes):
+ * - perIp: every request from one IP address, all forms together per route (decided by FloLabs
+ *   2026-10-24: 50 per 10 minutes);
+ * - perSender: valid submissions per email address (Application, Contact Us, Newsletter) or per
+ *   Application (Forms 1-3 links): 5 per 30 minutes.
+ */
+export const RATE_LIMITS = {
+  perIp: { limit: 50, windowMs: 10 * 60 * 1000 },
+  perSender: { limit: 5, windowMs: 30 * 60 * 1000 },
+} as const;
+
 export type RateLimiter = {
   /** Records one hit for `key`; returns how long to wait when the limit is exceeded. */
   hit(key: string): { allowed: true } | { allowed: false; retryAfterSeconds: number };

@@ -2,7 +2,7 @@ import { getEnv } from '@/server/env';
 import { LINK_FORM_TYPES, type LinkFormType } from '@/server/forms/link-tokens';
 import { createLinkFormHandler } from '@/server/forms/submit-link-form';
 import { logger } from '@/server/logger';
-import { createRateLimiter } from '@/server/rate-limit';
+import { createRateLimiter, RATE_LIMITS } from '@/server/rate-limit';
 import { createTurnstileVerifier } from '@/server/turnstile';
 import { getTwentyClient } from '@/server/twenty';
 import { TURNSTILE_ACTIONS } from '@/shared/config/application';
@@ -11,9 +11,7 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 // POST /api/forms/contacted | before-meeting | masterclass (T12-T14).
-// Same limits as the other forms: 10 requests / 10 min per IP, 5 per Application / 30 min.
-const IP_LIMIT = { limit: 10, windowMs: 10 * 60 * 1000 };
-const APPLICATION_LIMIT = { limit: 5, windowMs: 30 * 60 * 1000 };
+// Same limits as the other forms (RATE_LIMITS: per IP, and per Application instead of per email).
 
 const FORM_BY_PATH = new Map<string, LinkFormType>(
   Object.entries(LINK_FORM_TYPES).map(([formType, { path }]) => [path, formType as LinkFormType]),
@@ -30,7 +28,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ for
   let handle = handlers.get(formType);
   if (!handle) {
     const env = getEnv();
-    limiters ??= { ipLimiter: createRateLimiter(IP_LIMIT), emailLimiter: createRateLimiter(APPLICATION_LIMIT) };
+    limiters ??= { ipLimiter: createRateLimiter(RATE_LIMITS.perIp), emailLimiter: createRateLimiter(RATE_LIMITS.perSender) };
     handle = createLinkFormHandler(formType, {
       twenty: getTwentyClient(),
       logger,

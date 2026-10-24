@@ -22,7 +22,7 @@ const baseSchema = z.object({
   // Header carrying the real client IP when the app runs behind a proxy (T7 rate limits).
   // Unset: no header is trusted (local development: all requests share one IP bucket).
   // Required in production: without it every visitor shares one bucket, so the per-IP limit
-  // (10 / 10 min) would apply to the whole site (T15).
+  // (RATE_LIMITS.perIp) would apply to the whole site (T15).
   TRUSTED_IP_HEADER: z.enum(['cf-connecting-ip', 'x-forwarded-for', 'x-real-ip']).optional(),
   // Signs Form 1-3 links (T10). At least 32 characters; rotating it revokes all unused links.
   LINK_TOKEN_SECRET: z.string().min(32).optional(),

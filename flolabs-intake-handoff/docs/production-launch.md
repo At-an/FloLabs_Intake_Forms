@@ -9,6 +9,8 @@ For the person who deploys and runs the forms app (team lead / DevOps). Written 
 
 It talks only to Twenty (`https://157-230-82-204.sslip.io`) and Cloudflare Turnstile. CVs go into Twenty, whose file storage is on Cloudflare R2.
 
+**Rate limits** (set by FloLabs, in `src/server/rate-limit.ts`): **50 requests per IP address per 10 minutes**, and **5 submissions per email address** (per Application for Forms 1-3) **per 30 minutes**. Visitors over a limit see "Too many attempts. Please wait a moment and try again."
+
 **Out of scope for this launch** (decided): Amazon SES (HR sends links by hand), pipeline automation and form order, double opt-in for the Newsletter, other deployments than the one below.
 
 ---
