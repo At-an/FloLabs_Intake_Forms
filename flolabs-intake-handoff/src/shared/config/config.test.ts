@@ -3,12 +3,13 @@ import { describe, expect, it } from 'vitest';
 import { COUNTRIES, countryName, isCountryCode } from './countries';
 import { labelOf } from './options';
 import { PROGRAMS, PROGRAMS_BY_TRACK, TRACKS, trackOf, tracksOf } from './programs';
+import { embedFrameAncestors, EMBED_HOSTS } from './sites';
 import { SOURCES } from './sources';
 
 // Offline check against the latest schema snapshot; the live check is options.live.test.ts.
 const snapshot = JSON.parse(
-  readFileSync(new URL('../../../docs/snapshots/twenty-schema-2026-10-24-t2c.json', import.meta.url), 'utf8'),
-) as { objects: { application: { fields: { name: string; options?: { value: string; label: string }[] }[] } } };
+  readFileSync(new URL('../../../docs/snapshots/twenty-schema-2026-10-24-t2b.json', import.meta.url), 'utf8'),
+) as { sites: { siteId: string; hostname: string; active: boolean }[]; objects: { application: { fields: { name: string; options?: { value: string; label: string }[] }[] } } };
 const snapshotOptions = (field: string) =>
   snapshot.objects.application.fields.find((f) => f.name === field)!.options!.map(({ value, label }) => ({ value, label }));
 const sortByValue = <T extends { value: string }>(list: T[]) => [...list].sort((a, b) => a.value.localeCompare(b.value));
@@ -71,3 +72,18 @@ describe('countries', () => {
     expect(countryName('US')).toBe('United States');
   });
 });
+
+describe('embed allow-list', () => {
+  it('contains the hostname of every active Site and no inactive one', () => {
+    for (const site of snapshot.sites) {
+      expect(EMBED_HOSTS.includes(site.hostname as (typeof EMBED_HOSTS)[number]), site.siteId).toBe(site.active);
+    }
+  });
+
+  it('allows local test pages only in development', () => {
+    expect(embedFrameAncestors(false)).not.toMatch(/localhost|'self'/);
+    expect(embedFrameAncestors(false).split(' ').every((s) => s.startsWith('https://'))).toBe(true);
+    expect(embedFrameAncestors(true)).toContain("http://localhost:*");
+  });
+});
+

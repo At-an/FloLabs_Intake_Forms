@@ -103,8 +103,10 @@ describe('Twenty client', () => {
     const { client } = mockFetch(() => json({ data: {} }));
     expect(Object.keys(client).sort()).toEqual([
       'createApplication',
+      'createInquiry',
       'createPerson',
       'findApplicationBySubmissionKey',
+      'findInquiryBySubmissionKey',
       'findPersonByEmail',
       'findSiteByKey',
       'updatePerson',

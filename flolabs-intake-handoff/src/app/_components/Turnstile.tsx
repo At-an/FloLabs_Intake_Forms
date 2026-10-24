@@ -23,11 +23,13 @@ export function Turnstile({
   action,
   resetKey,
   onToken,
+  size = 'normal',
 }: {
   siteKey: string;
   action: string;
   resetKey: number;
   onToken: (token: string | null) => void;
+  size?: 'normal' | 'flexible' | 'compact';
 }) {
   const container = useRef<HTMLDivElement>(null);
   const widgetId = useRef<string | null>(null);
@@ -44,6 +46,7 @@ export function Turnstile({
       sitekey: siteKey,
       action,
       theme: 'light',
+      size,
       callback: (token: string) => onTokenRef.current(token),
       'expired-callback': () => onTokenRef.current(null),
       'error-callback': () => onTokenRef.current(null),
@@ -52,7 +55,7 @@ export function Turnstile({
       if (widgetId.current) window.turnstile?.remove(widgetId.current);
       widgetId.current = null;
     };
-  }, [ready, siteKey, action]);
+  }, [ready, siteKey, action, size]);
 
   useEffect(() => {
     if (resetKey > 0 && widgetId.current) {

@@ -114,7 +114,8 @@ POC scope: **the Application form first.** Forms 1-3, Contact Us and Newsletter 
 5. T5 `POST /api/applications` and T6 `/apply` form: **done** (2026-10-24). Twenty formats confirmed by a test write: `addressCountry` = English country name; phone = national number + ISO country code + calling code.
 6. T6c CV upload (path A): **done** (2026-10-24). T6c-0 (Twenty storage on R2) is still for the team lead; the app needs no change for it. T6d is not needed.
 7. T7 Turnstile + rate limits: **done** (2026-10-24). Local testing uses `npm run dev` (Turnstile test keys); `next start` needs real keys in `.env.local`.
-8. Next: Checkpoint B (POC acceptance test, your sign-off), then T15/T16 or the revised POC.
+8. T2b (Inquiry + Person consent fields), T6b embeds, T8 Newsletter: **done** (2026-10-24). T9 Contact Us: code done; live run waits for the admin to give the API key's role access to the Inquiry object.
+9. Test page for embeds: `npm run dev`, then `http://localhost:3000/dev/embed-test`.
 
 Recommended skills per step: source-driven-development (T1), api-and-interface-design (T5), security-and-hardening (T5, T7, T15), incremental-implementation, frontend-ui-engineering (T6), test-driven-development, flolabs-code-reviewer before merge, documentation-and-adrs (T16).
 

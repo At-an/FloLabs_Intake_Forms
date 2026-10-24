@@ -4,7 +4,8 @@ import type { Logger } from '../logger';
 import type { TwentyClient } from '../twenty/client';
 import { FIELD_IDS } from '../twenty/fields';
 import type { CheckedCv } from './cv';
-import { fillEmptyPatch, toApplicationInput, toPersonInput, type SiteResolution } from './mapping';
+import { upsertPersonByEmail } from '../people/person';
+import { toApplicationInput, toPersonData, type SiteResolution } from './mapping';
 
 export type SubmitResult = { applicationId: string; duplicate: boolean };
 
@@ -66,21 +67,12 @@ export async function submitApplication(
   });
   logger.info('cv.uploaded', { recordId: fileId, code: `CV_${cv.kind.toUpperCase()}` });
 
-  const incoming = toPersonInput(data);
-
-  let personId: string;
-  const person = await twenty.findPersonByEmail(data.email);
-  if (person) {
-    personId = person.id;
-    const patch = fillEmptyPatch(person, incoming);
-    if (patch) await twenty.updatePerson(person.id, patch);
-    logger.info('person.matched', { personId, code: patch ? 'FILLED_EMPTY_FIELDS' : 'NOTHING_TO_FILL' });
-  } else {
-    personId = (await twenty.createPerson(incoming)).id;
-    logger.info('person.created', { personId });
-  }
-
   const submittedAt = now().toISOString();
+  const { personId } = await upsertPersonByEmail(
+    toPersonData(data, { submittedAt, consentSiteKey: site.status === 'KNOWN' ? site.keyReceived : undefined }),
+    { twenty, logger },
+  );
+
   const { id: applicationId } = await twenty.createApplication(
     toApplicationInput(data, { personId, site, submittedAt, cv: { fileId, label: cv.label } }),
   );

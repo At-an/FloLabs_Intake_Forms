@@ -1,5 +1,5 @@
 import 'server-only';
-import type { ApplicationInput, ApplicationRef, Person, PersonInput, Site } from './types';
+import type { ApplicationInput, ApplicationRef, InquiryInput, Person, PersonInput, Site } from './types';
 
 // Purpose-built Twenty client (CLAUDE.md rule 3): named operations only, no generic proxy.
 // All values travel as GraphQL variables; the REST filter syntax breaks on characters
@@ -34,6 +34,10 @@ const PERSON_FIELDS = `
   location { addressStreet1 addressStreet2 addressCity addressState addressPostcode addressCountry addressLat addressLng }
   linkedinLink { primaryLinkUrl primaryLinkLabel secondaryLinks }
   education
+  communicationConsent
+  communicationConsentAt
+  consentVersion
+  communicationConsentSite
 `;
 
 // File bytes may only go to Twenty itself or, once its storage is on R2 (T6c-0), to R2.
@@ -190,6 +194,26 @@ export function createTwentyClient({ baseUrl, apiKey, fetch: fetchImpl = fetch, 
         { data: input },
       );
       return data.createApplication;
+    },
+
+    async findInquiryBySubmissionKey(submissionKey: string): Promise<{ id: string } | null> {
+      const data = await request<{ inquiries: Connection<{ id: string }> }>(
+        'twenty.findInquiryBySubmissionKey',
+        `query FindInquiryBySubmissionKey($submissionKey: String!) {
+          inquiries(filter: { submissionKey: { eq: $submissionKey } }, first: 1) { edges { node { id } } }
+        }`,
+        { submissionKey },
+      );
+      return first(data.inquiries);
+    },
+
+    async createInquiry(input: InquiryInput): Promise<{ id: string }> {
+      const data = await request<{ createInquiry: { id: string } }>(
+        'twenty.createInquiry',
+        `mutation CreateInquiry($data: InquiryCreateInput!) { createInquiry(data: $data) { id } }`,
+        { data: input },
+      );
+      return data.createInquiry;
     },
   } as const;
 }

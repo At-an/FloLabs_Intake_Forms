@@ -36,6 +36,10 @@ export type Person = {
   location: Address | null;
   linkedinLink: Links | null;
   education: string | null;
+  communicationConsent?: boolean | null;
+  communicationConsentAt?: string | null;
+  consentVersion?: string | null;
+  communicationConsentSite?: string | null;
 };
 
 export type PersonInput = Partial<Omit<Person, 'id'>>;
@@ -71,3 +75,14 @@ export type ApplicationInput = {
 };
 
 export type ApplicationRef = { id: string; personId: string | null };
+
+export type InquiryInput = {
+  name: string;
+  subject: string;
+  message: string;
+  status: 'NEW' | 'IN_PROGRESS' | 'CLOSED';
+  submittedAt: string;
+  submissionKey: string;
+  personId: string;
+  siteId: string;
+};

@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { getEnv } from '@/server/env';
 import { COUNTRIES } from '@/shared/config/countries';
 import { ApplicationForm } from './ApplicationForm';
-import styles from './apply.module.css';
+import styles from '../_components/form.module.css';
 
 export const metadata: Metadata = { title: 'Apply | FloLabs' };
 

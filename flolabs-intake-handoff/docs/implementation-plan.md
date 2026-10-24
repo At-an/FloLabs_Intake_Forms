@@ -39,7 +39,7 @@ Schema verification (T1) -> Application schema changes (T2a) -> Twenty client + 
 - Verify: re-run `scripts/t1-schema-probe.mjs`, diff against `docs/snapshots/twenty-schema-2026-10-23.json`; only the changes above; nothing deleted or renamed.
 - Depends: T1.
 
-**T2b New objects (revised POC).** M
+**T2b New objects (revised POC).** M. **Partly done 2026-10-24** (`scripts/t2b-inquiry-consent.mjs`, snapshot `twenty-schema-2026-10-24-t2b.json`): Inquiry object + 4 Person consent fields. Form Submission and Reference still to come (Forms 1-3).
 - AC: Inquiry, Form Submission (incl. `submissionKey`, `answers` RAW_JSON, `answersSummary` RICH_TEXT) and Reference exist as in spec section 7; Person consent fields added (D17). No Subscription object.
 - Verify: same snapshot diff.
 - Depends: T2a.
@@ -69,7 +69,7 @@ Checkpoint A: tests and build pass; you review the schema map. (Schema decisions
 - Verify: manual run through all 3 Source branches; browser devtools show no Twenty key or URL.
 - Skill: frontend-ui-engineering.
 
-**T6b Embed loader + embed route (moved to the revised POC, with T8/T9).** S
+**T6b Embed loader + embed route (moved to the revised POC, with T8/T9).** S. **Done 2026-10-24**: `public/embed.js`, `/embed/[form]` (contact-us, newsletter; inactive/unknown site -> "not available"), CSP `frame-ancestors` = 15 active Site hosts + moodchanger.ai (localhost only in dev), all other pages `frame-ancestors 'none'` + `X-Frame-Options: DENY`; test page `/dev/embed-test` (dev only).
 - AC: `<script src=".../embed.js" data-form="contact-us" data-site="robocollective">` injects an auto-resizing iframe; CSP `frame-ancestors` lists only FloLabs domains; unknown site keys are rejected.
 - Verify: embedding works on an allow-listed test page and is refused on a non-listed origin.
 
@@ -95,10 +95,10 @@ Checkpoint B: run the briefing's POC acceptance test end to end (including CV in
 
 ## Phase 2: Simple embeds (parallel, revised POC)
 
-**T8 Newsletter widget.** S
+**T8 Newsletter widget.** S. **Done 2026-10-24** (`POST /api/newsletter`): verified live, consent stored on the existing test Person, repeat sign-up was a no-op. Single opt-in until SES; consent wording is a draft for review.
 - AC: find-or-create Person by email (fill-empty); marketing consent, timestamp, consentVersion and site key stored in the Person consent fields; re-subscribing is idempotent. Confirmation email waits for SES.
 
-**T9 Contact Us -> Inquiry.** S
+**T9 Contact Us -> Inquiry.** S. **Code done 2026-10-24** (`POST /api/inquiries`, unit-tested). **Live run blocked**: the API key's role has no permission on the new Inquiry object (Twenty returns FORBIDDEN); an admin must grant it in Settings -> Roles.
 - AC: Person (fill-empty) + Inquiry with Site; message length limits enforced.
 
 Checkpoint C.

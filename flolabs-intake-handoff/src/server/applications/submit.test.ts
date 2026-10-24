@@ -120,6 +120,32 @@ describe('submitApplication: CV (T6c)', () => {
   });
 });
 
+describe('submitApplication: Person consent from the marketing opt-in (spec D17)', () => {
+  it('fills the Person consent when the box is ticked, with the site key for a known Site', async () => {
+    const fake = fakeTwenty();
+    await run(fake, 'robocollective', data({ marketingOptIn: true })).promise;
+    expect(fake.calls.createPerson[0]).toMatchObject({
+      communicationConsent: true,
+      communicationConsentAt: NOW.toISOString(),
+      consentVersion: 'application-consent-v1',
+      communicationConsentSite: 'robocollective',
+    });
+  });
+
+  it('records no consent site when the link had an unknown site', async () => {
+    const fake = fakeTwenty();
+    await run(fake, 'not_a_site', data({ marketingOptIn: true })).promise;
+    expect(fake.calls.createPerson[0]).toMatchObject({ communicationConsent: true });
+    expect(fake.calls.createPerson[0]).not.toHaveProperty('communicationConsentSite');
+  });
+
+  it('records no Person consent when the box is not ticked', async () => {
+    const fake = fakeTwenty();
+    await run(fake).promise;
+    expect(fake.calls.createPerson[0]).not.toHaveProperty('communicationConsent');
+  });
+});
+
 describe('submitApplication: Site resolution (approved 2026-10-24)', () => {
   const siteFields = async (siteKey: string | undefined) => {
     const fake = fakeTwenty();

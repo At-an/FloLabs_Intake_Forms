@@ -8,7 +8,7 @@ export const APPLICATION_FORM = {
 } as const;
 
 /** Turnstile widget action per form; the server rejects tokens issued for another form. */
-export const TURNSTILE_ACTIONS = { application: 'application' } as const;
+export const TURNSTILE_ACTIONS = { application: 'application', contactUs: 'contact-us', newsletter: 'newsletter' } as const;
 
 export const HR_EMAIL = 'hr@flolabsinnovations.com';
 

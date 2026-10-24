@@ -225,3 +225,41 @@
   clip: rect(0 0 0 0);
   white-space: nowrap;
 }
+
+/* Embedded forms (Contact Us, Newsletter) */
+.embed {
+  padding: 8px;
+}
+
+.embedTitle {
+  display: block;
+  margin: 0 0 12px;
+  font-size: 1.25rem;
+  font-weight: 650;
+}
+
+.textarea {
+  min-height: 140px;
+  resize: vertical;
+}
+
+.newsletter {
+  padding: 8px;
+}
+
+.inline {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.inline .input {
+  flex: 1;
+  min-width: 0;
+}
+
+@media (max-width: 420px) {
+  .inline {
+    flex-direction: column;
+  }
+}

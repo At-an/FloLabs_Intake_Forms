@@ -4,20 +4,15 @@ import { countryName } from '@/shared/config/countries';
 import { labelOf } from '@/shared/config/options';
 import { PROGRAMS } from '@/shared/config/programs';
 import type { ApplicationFormData } from '@/shared/forms/application';
-import type { Address, ApplicationInput, Emails, FullName, Links, Person, PersonInput, Phones, SiteStatus } from '../twenty/types';
+import type { PersonData } from '../people/person';
+import type { ApplicationInput, SiteStatus } from '../twenty/types';
 
 // Form data -> Twenty records. API names: docs/twenty-schema.md.
 
-type NewPerson = {
-  name: FullName;
-  emails: Emails;
-  phones: Phones;
-  location: Address;
-  education: string;
-  linkedinLink?: Links;
-};
-
-export function toPersonInput(data: ApplicationFormData): NewPerson {
+export function toPersonData(
+  data: ApplicationFormData,
+  refs: { submittedAt: string; consentSiteKey?: string },
+): PersonData {
   return {
     name: { firstName: data.firstName, lastName: data.lastName },
     emails: { primaryEmail: data.email, additionalEmails: [] },
@@ -36,53 +31,11 @@ export function toPersonInput(data: ApplicationFormData): NewPerson {
     ...(data.linkedinUrl && {
       linkedinLink: { primaryLinkUrl: data.linkedinUrl, primaryLinkLabel: '', secondaryLinks: [] },
     }),
+    // Marketing opt-in also fills an empty Person consent (spec D17).
+    ...(data.marketingOptIn && {
+      consent: { at: refs.submittedAt, version: APPLICATION_FORM.consentVersion, siteKey: refs.consentSiteKey },
+    }),
   };
-}
-
-const isBlank = (value: string | null | undefined) => !value?.trim();
-
-/**
- * Fill-empty rule (spec D7): for a Person matched by email, only empty fields are filled;
- * nothing that already has a value is overwritten. Composite fields are sent whole, merged
- * with what is stored. Returns null when there is nothing to fill.
- */
-export function fillEmptyPatch(existing: Person, incoming: NewPerson): PersonInput | null {
-  const patch: PersonInput = {};
-
-  const name = existing.name ?? { firstName: '', lastName: '' };
-  if (isBlank(name.firstName) || isBlank(name.lastName)) {
-    patch.name = {
-      firstName: isBlank(name.firstName) ? incoming.name.firstName : name.firstName,
-      lastName: isBlank(name.lastName) ? incoming.name.lastName : name.lastName,
-    };
-  }
-
-  if (isBlank(existing.phones?.primaryPhoneNumber)) {
-    patch.phones = { ...incoming.phones, additionalPhones: existing.phones?.additionalPhones ?? [] };
-  }
-
-  const stored: Address = existing.location ?? {};
-  const filled: Address = { ...stored };
-  let locationChanged = false;
-  for (const key of ['addressCountry', 'addressState', 'addressCity'] as const) {
-    if (isBlank(stored[key]) && !isBlank(incoming.location[key])) {
-      filled[key] = incoming.location[key];
-      locationChanged = true;
-    }
-  }
-  if (locationChanged) patch.location = filled;
-
-  if (incoming.linkedinLink && isBlank(existing.linkedinLink?.primaryLinkUrl)) {
-    patch.linkedinLink = {
-      primaryLinkUrl: incoming.linkedinLink.primaryLinkUrl,
-      primaryLinkLabel: existing.linkedinLink?.primaryLinkLabel ?? '',
-      secondaryLinks: existing.linkedinLink?.secondaryLinks ?? [],
-    };
-  }
-
-  if (isBlank(existing.education)) patch.education = incoming.education;
-
-  return Object.keys(patch).length ? patch : null;
 }
 
 /** Outcome of reading `?site=` from the application link (spec section 1). */

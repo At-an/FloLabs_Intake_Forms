@@ -1,13 +1,14 @@
 'use client';
 
-import { useId, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { useId, useMemo, useRef, useState, type FormEvent } from 'react';
 import { CONSENT_TEXT, HR_EMAIL, LIMITS, TURNSTILE_ACTIONS } from '@/shared/config/application';
 import { PROGRAMS_BY_TRACK } from '@/shared/config/programs';
 import { SOURCES } from '@/shared/config/sources';
 import { applicationSchema, fieldErrors } from '@/shared/forms/application';
 import { CV_ACCEPT, cvProblem } from '@/shared/forms/cv';
-import styles from './apply.module.css';
-import { Turnstile } from './Turnstile';
+import { ErrorText, Field, newSubmissionKey, Required } from '../_components/form-ui';
+import styles from '../_components/form.module.css';
+import { Turnstile } from '../_components/Turnstile';
 
 type Country = { value: string; label: string; callingCode: string };
 
@@ -75,15 +76,6 @@ type FieldKey = (typeof FIELD_ORDER)[number];
 
 const GENERIC_ERROR = 'Something went wrong. Please try again later.';
 const TURNSTILE_MESSAGE = 'Please complete the security check below.';
-
-/** UUID v4 that also works on plain-http test addresses, where crypto.randomUUID is unavailable. */
-function newSubmissionKey(): string {
-  const bytes = crypto.getRandomValues(new Uint8Array(16));
-  bytes[6] = (bytes[6]! & 0x0f) | 0x40;
-  bytes[8] = (bytes[8]! & 0x3f) | 0x80;
-  const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
-  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
-}
 
 function toRequest(values: Values, submissionKey: string) {
   const { phoneCountry, phoneNumber, source, ...rest } = values;
@@ -542,60 +534,3 @@ type TextProps = {
   maxLength?: number;
   hint?: string;
 };
-
-function Required() {
-  return (
-    <span className={styles.required} aria-hidden="true">
-      *
-    </span>
-  );
-}
-
-function ErrorText({ id, children }: { id: string; children: ReactNode }) {
-  return (
-    <p id={id} className={styles.error}>
-      {children}
-    </p>
-  );
-}
-
-function Field({
-  id,
-  label,
-  required,
-  hint,
-  error,
-  ok,
-  children,
-}: {
-  id: string;
-  label: string;
-  required?: boolean;
-  hint?: string;
-  error?: string;
-  ok?: boolean;
-  children: ReactNode;
-}) {
-  return (
-    <div className={styles.field}>
-      <label htmlFor={id} className={styles.label}>
-        {label} {required && <Required />}
-      </label>
-      {hint && (
-        <p id={`${id}-hint`} className={styles.hint}>
-          {hint}
-        </p>
-      )}
-      {children}
-      {error ? (
-        <ErrorText id={`${id}-error`}>{error}</ErrorText>
-      ) : (
-        ok && (
-          <p className={styles.ok} aria-hidden="true">
-            Looks good
-          </p>
-        )
-      )}
-    </div>
-  );
-}

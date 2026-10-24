@@ -1,7 +1,7 @@
 # Twenty schema map (T1)
 
 Verified against the live instance on 2026-10-23 (`https://157-230-82-204.sslip.io`); updated after T2a on 2026-10-24.
-Machine-readable snapshots: `docs/snapshots/twenty-schema-2026-10-23.json` (T1), `docs/snapshots/twenty-schema-2026-10-24-t2a.json` (T2a) and `docs/snapshots/twenty-schema-2026-10-24-t2c.json` (current, after T2c site-status fields; field ids, options, relations).
+Machine-readable snapshots: `docs/snapshots/twenty-schema-2026-10-23.json` (T1), `-2026-10-24-t2a.json` (T2a), `-2026-10-24-t2c.json` (T2c site status) and `docs/snapshots/twenty-schema-2026-10-24-t2b.json` (current, after T2b Inquiry + Person consent; field ids, options, relations).
 Re-generate with `node --env-file=.env.local scripts/t1-schema-probe.mjs <out.json>` from `flolabs-intake-handoff/`.
 
 Live data at verification time: 5 People, 1 Application, 1 Site, 0 Attachments.
@@ -232,6 +232,16 @@ The API supports server-side file upload through GraphQL `/metadata`:
 4. Write the record with `cvResume: [{ fileId, label }]` (or an Attachment with `file: [...]` + `targetApplicationId`).
 
 **Result: path A is supported by the API.** Preferred variant: the native `Application.cvResume` FILES field (field id above), since HR sees the CV on the record itself. An Attachment record is the alternative. Not yet exercised end to end (T1 is read-only). T6c confirms with a real upload, after T6c-0 points storage at R2.
+
+## Inquiry (`inquiry` / `inquiries`), created in T2b 2026-10-24
+
+`name` TEXT ("First Last - Subject"), `subject` TEXT, `message` TEXT, `status` SELECT (`NEW` default, `IN_PROGRESS`, `CLOSED`), `submittedAt` DATE_TIME, `submissionKey` TEXT, `person`/`personId` RELATION many-to-one -> `person.inquiries`, `site`/`siteId` RELATION many-to-one -> `site.inquiries`. Object id `4c3e95a3-0373-4f1f-91b1-55e7845cf78c`.
+
+**Permission gap (2026-10-24):** the API key's role cannot read or write Inquiry records (FORBIDDEN). An admin must allow it in Twenty Settings -> Roles -> (the key's role) -> object permissions.
+
+## Person consent fields, created in T2b 2026-10-24
+
+`communicationConsent` BOOLEAN (default false), `communicationConsentAt` DATE_TIME, `consentVersion` TEXT, `communicationConsentSite` TEXT (site key). Filled by the Newsletter and by the Application marketing opt-in when empty (spec D17).
 
 ## Approved changes (spec section 7, Checkpoint A 2026-10-24)
 
