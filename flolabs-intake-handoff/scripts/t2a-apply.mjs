@@ -1,6 +1,6 @@
 // T2a: Application schema changes (approved at Checkpoint A, 2026-10-24).
-// Run from the repo root, one step at a time:
-//   node --env-file=.env.local flolabs-intake-handoff/scripts/t2a-apply.mjs <positions|source|submissionKey>
+// Run from flolabs-intake-handoff/ (where .env.local lives), one step at a time:
+//   node --env-file=.env.local scripts/t2a-apply.mjs <positions|source|submissionKey>
 // Existing select options are re-sent unchanged (same id, value, color); option updates replace the whole list.
 // Never prints the API key.
 import { randomUUID } from 'node:crypto';

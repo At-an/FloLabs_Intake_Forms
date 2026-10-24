@@ -1,0 +1,48 @@
+/* Interface colour: cream white #FCFBF4 page (FloLabs, 2026-10-24). Light theme only, so the
+   cream is never replaced by a dark theme. Forms sit on white cards with a blue accent
+   (palette inspired by the reference form shared on 2026-10-24); all text pairs meet WCAG AA. */
+:root {
+  --bg: #fcfbf4;
+  --surface: #ffffff;
+  --input-bg: #ffffff;
+  --text: #1f2937;
+  --muted: #5b6472;
+  --border: #d1d5db;
+  --border-soft: #e7e5dc;
+  --accent: #2563eb;
+  --accent-hover: #1d4ed8;
+  --accent-soft: #eff6ff;
+  --accent-text: #ffffff;
+  --focus: #3b82f6;
+  --focus-ring: rgba(59, 130, 246, 0.25);
+  --error: #dc2626;
+  --error-bg: #fef2f2;
+  --success: #067647;
+  --success-bg: #ecf8ef;
+  --radius: 16px;
+  color-scheme: light;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}

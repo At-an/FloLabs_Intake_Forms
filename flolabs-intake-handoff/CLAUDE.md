@@ -20,6 +20,9 @@ Plus a Contact Us form and a Newsletter widget for FloLabs websites.
 - Twenty CRM: `https://157-230-82-204.sslip.io` (REST/GraphQL API; API key in env only).
 - Cloudflare Turnstile (bot protection). Cloudflare R2 (CV storage).
 - POC runs locally with `npm run dev`. No hosting deployment yet.
+- App lives in this folder (`flolabs-intake-handoff/`, where `.env.local` is). Commands: `npm run dev | build | lint | typecheck | test`; `npm run test:live` = read-only checks against the live Twenty; `npm run test:live-write` = live checks that **create records** (run only on purpose).
+- Pinned: Next 16.4.3, React 19.3.1, Zod 4.6.7, TypeScript 6.0.3 (typescript-eslint does not support TS 7 yet), ESLint 9.39.5 (Next's lint plugins cap at 9), Vitest 5.0.5.
+- Server code lives in `src/server/` and imports `server-only`. Twenty access only through `src/server/twenty` (GraphQL with variables; REST filters break on `)` and `,`).
 - Forms address: dev/test `forms.157-230-82-204.sslip.io`; production `forms.flolabsinnovations.com`.
 - Env vars: `TWENTY_BASE_URL`, `TWENTY_API_KEY`, `TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY`, `LINK_TOKEN_SECRET`, `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`. All in `.env.local` (git-ignored). Locally, use Cloudflare's Turnstile test keys.
 
@@ -38,18 +41,24 @@ Plus a Contact Us form and a Newsletter widget for FloLabs websites.
 ## 5. Forms and links (13 forms + 1 widget)
 | Form | Delivery | Versions |
 |---|---|---|
-| Application | iframe embed on every FloLabs site | 1 |
-| Contact Us | iframe embed | 1 |
-| Newsletter (widget, email only) | iframe embed | 1 |
+| Application | iframe embed in a section of any FloLabs website, and hosted link `/apply?site=<site_id>` | 1 |
+| Contact Us | iframe embed in a section of any FloLabs website | 1 |
+| Newsletter (widget, email only) | iframe embed in a section of any FloLabs website | 1 |
 | Form 1 Contacted | hosted link `/contacted?t=<token>` | 5 track versions, merged when positions span tracks |
 | Form 2 Before Meeting | hosted link `/before-meeting?t=<token>` | 5 track versions, merged likewise |
 | Form 3 Masterclass | hosted link `/masterclass?t=<token>` | 1 |
 
-**Embeds.** One loader `embed.js` + one `/embed/[form]` route:
-`<div data-flolabs-form="application" data-site="robocollective"></div><script src="https://forms.<domain>/embed.js" async></script>`
-- The loader injects an auto-resizing iframe.
-- CSP `frame-ancestors` is an allow-list of FloLabs domains.
-- `data-site` is validated against an allow-list and resolved to a Twenty Site server-side. The POC uses Site `flolabs_international`. The applicant never chooses the Site.
+**Embeds (Application, Contact Us, Newsletter; decided 2026-10-24).** One loader `embed.js` + one `/embed/[form]` route. A website places a `<div>` where the form should appear:
+`<div data-flolabs-form="application" data-site="robocollective"></div><script src="https://forms.<domain>/embed.js" async></script>` (`contact-us`, `newsletter` likewise)
+- The loader turns the div into an auto-resizing iframe (a section of the page, not a whole page).
+- CSP `frame-ancestors https:`: **any HTTPS website** may embed the forms, so current and future FloLabs websites work without a code change. All other pages (e.g. `/apply`) cannot be framed.
+- `data-site` is never refused: every submission records and marks it with the site rule below.
+
+**Site rule (all forms, approved 2026-10-24, `src/server/sites.ts`).** The site key (`data-site` or `?site=`) is resolved server-side: active -> Site linked, `siteStatus` KNOWN; missing -> Site empty, MISSING; unknown (e.g. a future website not yet in Twenty) -> Site empty, UNKNOWN; inactive -> that Site linked, INACTIVE. The key as received is kept in `siteKeyReceived` (Application, Inquiry) or `communicationConsentSite` (Newsletter, on Person). The visitor never chooses the Site.
+
+**Application link.** `/apply?site=<site_id>`, public, no token, same site rule.
+
+**Sites.** All 16 FloLabs Sites exist in Twenty (`scripts/t2-sites.mjs`, ids in `docs/twenty-schema.md`). `flomad` is inactive (expired certificate, site down).
 
 **Tokens.** Stateless HMAC-signed token `{applicationId, formType}`:
 - **No expiry** (unlimited validity), but single use (rejected if a Form Submission already exists for it).
@@ -86,7 +95,7 @@ Existing: **People** (native), **Applications** (custom; belongs to one Person a
 
 **CV:**
 - PDF/DOCX only, verified by file signature, max 5 MB.
-- **Path A (preferred, API support confirmed in T1):** upload into `Application.cvResume` via `createFileUpload` / `completeFileUpload`, with Twenty's storage on R2 (`STORAGE_TYPE=S_3`, `STORAGE_S3_ENDPOINT`; server change done by the team lead, T6c-0).
+- **Path A (in use since T6c, verified live 2026-10-24):** upload into `Application.cvResume` via `createFileUpload` / `completeFileUpload`, with Twenty's storage on R2 (`STORAGE_TYPE=S_3`, `STORAGE_S3_ENDPOINT`; server change done by the team lead, T6c-0).
 - **Path B (fallback, if the API cannot upload attachments):** private R2 key on the Application, plus a "View CV" overlay behind Cloudflare Access with a short-lived presigned URL. DOCX is converted to PDF at upload.
 - If the CV upload fails, no Application is created.
 
@@ -102,7 +111,18 @@ Existing: **People** (native), **Applications** (custom; belongs to one Person a
 POC scope: **the Application form first.** Forms 1-3, Contact Us and Newsletter come in a revised POC.
 1. T1 schema verification: **done** (`docs/twenty-schema.md`). Checkpoint A decisions: **approved** (2026-10-24).
 2. T2a Application schema changes: **done** (2026-10-24). T2b (new objects, Person consent fields) waits for the revised POC.
-3. T3 scaffold + typed Twenty client, then Phase 1 (T4-T7) as in the plan.
+3. T3 scaffold + typed Twenty client: **done** (2026-10-24). Repository: public `https://github.com/at-an/FloLabs_Intake_Forms`; branch `develop` (work, renamed from `t3-scaffold-twenty-client`) and `main` (production releases).
+4. T4 shared config + Zod schema: **done** (2026-10-24). Consent checkbox wording approved (`src/shared/config/application.ts`).
+5. T5 `POST /api/applications` and T6 `/apply` form: **done** (2026-10-24). Twenty formats confirmed by a test write: `addressCountry` = English country name; phone = national number + ISO country code + calling code.
+6. T6c CV upload (path A): **done** (2026-10-24). T6c-0 (Twenty storage on R2) is still for the team lead; the app needs no change for it. T6d is not needed.
+7. T7 Turnstile + rate limits: **done** (2026-10-24). Local testing uses `npm run dev` (Turnstile test keys); `next start` needs real keys in `.env.local`.
+8. T2b (Inquiry + Person consent fields), T6b embeds, T8 Newsletter: **done** (2026-10-24). T9 Contact Us: **done**, live run passed 2026-10-24.
+9. Test page for embeds: `npm run dev`, then `http://localhost:3000/dev/embed-test`.
+10. T2b complete (Form Submission, Reference), T10 signed links and T11 form engine: **done** (2026-10-24). The API key's role can read/create Inquiries, Form Submissions and References (granted 2026-10-24).
+11. T12-T14 Forms 1-3 (configs, `POST /api/forms/<form>`, UI with browser drafts, all three multi-step with a shared header on every step, Form 3 References): **done** (2026-10-24), unit-tested; live check `npm run test:live-write` passed (one-shot per test Application). Preview: `/dev/link-form`.
+12. T15 security pass: **done** (2026-10-24, see the plan). Production launch steps: `docs/production-launch.md` (run one app instance; `TRUSTED_IP_HEADER` required in production).
+13. T16 documentation: **done** (2026-10-24): `docs/hr-guide.md` (HR hand-over), `docs/implementation-report.md` (everything implemented, decisions, issues, test record ids), `docs/production-launch.md` (runbook). Out of scope (decided 2026-10-24): enforcing the Form 1-2-3 order and Amazon SES; both come later with automation.
+14. Next: deployment (runbook), then delete the test records when the user says so.
 
 Recommended skills per step: source-driven-development (T1), api-and-interface-design (T5), security-and-hardening (T5, T7, T15), incremental-implementation, frontend-ui-engineering (T6), test-driven-development, flolabs-code-reviewer before merge, documentation-and-adrs (T16).
 

@@ -1,0 +1,726 @@
+.page {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 32px 16px 64px;
+}
+
+.header h1 {
+  margin: 0 0 8px;
+  font-size: 1.75rem;
+  line-height: 1.25;
+}
+
+.lead {
+  margin: 0 0 24px;
+  color: var(--muted);
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius);
+  padding: 40px 44px;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04), 0 8px 24px rgba(16, 24, 40, 0.05);
+}
+
+.section {
+  border: 0;
+  margin: 0 0 28px;
+  padding: 0;
+  min-width: 0;
+}
+
+.sectionTitle {
+  font-size: 1.15rem;
+  font-weight: 650;
+  margin-bottom: 12px;
+  padding: 0;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 16px;
+}
+
+@media (max-width: 560px) {
+  .row {
+    grid-template-columns: 1fr;
+  }
+  .card {
+    padding: 20px 16px;
+  }
+}
+
+.field {
+  margin-bottom: 16px;
+  min-width: 0;
+}
+
+.label {
+  display: block;
+  font-size: 1.05rem;
+  font-weight: 500;
+  margin-bottom: 8px;
+}
+
+.required {
+  color: var(--error);
+}
+
+.hint {
+  margin: 0 0 6px;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.input {
+  display: block;
+  width: 100%;
+  min-height: 46px;
+  padding: 10px 14px;
+  font: inherit;
+  color: var(--text);
+  background: var(--input-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.input:hover {
+  border-color: #9ca3af;
+}
+
+/* Focus: blue border + soft ring, as in the reference form. */
+.input:focus-visible {
+  outline: none;
+  border-color: var(--focus);
+  box-shadow: 0 0 0 3px var(--focus-ring);
+}
+
+.file {
+  display: block;
+  width: 100%;
+  padding: 10px;
+  font: inherit;
+  background: var(--input-bg);
+  border: 1px dashed var(--border);
+  border-radius: 6px;
+}
+
+.file[aria-invalid='true'] {
+  border: 1px solid var(--error);
+}
+
+.input[aria-invalid='true'] {
+  border-color: var(--error);
+  box-shadow: 0 0 0 1px var(--error);
+}
+
+.input[aria-invalid='true']:focus-visible {
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.2);
+}
+
+.error {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 8px 0 0;
+  color: var(--error);
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+
+/* Round "!" icon before every error message. */
+.error::before {
+  content: '!';
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  margin-top: 2px;
+  border-radius: 50%;
+  background: var(--error);
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.ok {
+  margin: 6px 0 0;
+  color: var(--success);
+  font-size: 0.9rem;
+}
+
+.ok::before {
+  content: '✓ ';
+}
+
+.tracks {
+  display: grid;
+  gap: 12px;
+}
+
+.track {
+  border: 1px solid var(--border-soft);
+  border-radius: 12px;
+  margin: 0;
+  padding: 8px 14px 10px;
+  min-width: 0;
+}
+
+.trackTitle {
+  font-weight: 600;
+  padding: 0 4px;
+}
+
+.check {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 6px 0;
+  cursor: pointer;
+}
+
+.check input {
+  width: 20px;
+  height: 20px;
+  margin: 2px 0 0;
+  flex: none;
+  accent-color: var(--accent);
+}
+
+.consent {
+  margin-bottom: 8px;
+}
+
+.summaryAnchor:focus {
+  outline: none;
+}
+
+.summary {
+  border: 1px solid var(--error);
+  background: var(--error-bg);
+  border-radius: 10px;
+  padding: 12px 16px;
+  margin-bottom: 24px;
+}
+
+.summaryTitle {
+  margin: 0 0 6px;
+  font-size: 1rem;
+}
+
+.summary ul {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.summary a {
+  color: var(--error);
+}
+
+.formError {
+  border-left: 4px solid var(--error);
+  background: var(--error-bg);
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin: 0 0 16px;
+}
+
+.submit {
+  min-height: 48px;
+  padding: 0 28px;
+  font: inherit;
+  font-weight: 600;
+  color: var(--accent-text);
+  background: var(--accent);
+  border: 0;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.submit:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.submit:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.doneTitle {
+  margin-top: 0;
+  color: var(--success);
+}
+
+.doneTitle:focus {
+  outline: none;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* Embedded forms (Contact Us, Newsletter) */
+.embed {
+  padding: 8px;
+}
+
+.embedTitle {
+  display: block;
+  margin: 0 0 12px;
+  font-size: 1.25rem;
+  font-weight: 650;
+}
+
+.textarea {
+  min-height: 140px;
+  resize: vertical;
+}
+
+.newsletter {
+  padding: 8px;
+}
+
+.inline {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.inline .input {
+  flex: 1;
+  min-width: 0;
+}
+
+@media (max-width: 420px) {
+  .inline {
+    flex-direction: column;
+  }
+}
+
+/* Forms 1-3 (link forms) */
+.statement {
+  margin: 0 0 8px;
+  padding: 10px 14px;
+  border-left: 4px solid var(--accent);
+  border-radius: 8px;
+  background: var(--accent-soft);
+}
+
+.choices {
+  border: 0;
+  padding: 0;
+}
+
+.choices .label {
+  padding: 0;
+}
+
+.options {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 10px;
+}
+
+.options .option {
+  margin: 0;
+  max-width: none;
+}
+
+/* Radio/checkbox answers as bordered boxes; the chosen one turns blue. */
+.option {
+  align-items: center;
+  max-width: 440px;
+  margin: 0 0 10px;
+  padding: 12px 14px;
+  background: var(--input-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.option:hover {
+  border-color: var(--focus);
+}
+
+.option:has(input:checked) {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.option:has(input:focus-visible) {
+  box-shadow: 0 0 0 3px var(--focus-ring);
+}
+
+.option input {
+  margin: 0;
+}
+
+.number {
+  max-width: 160px;
+}
+
+.snippet {
+  margin: 0 0 16px;
+  padding: 12px 16px;
+  border-left: 4px solid var(--border);
+  border-radius: 8px;
+  background: #f9fafb;
+  font-style: italic;
+}
+
+.linkRow {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.linkRow .input {
+  flex: 1;
+  min-width: 0;
+}
+
+.secondary {
+  min-height: 46px;
+  padding: 0 18px;
+  font: inherit;
+  color: var(--text);
+  background: var(--input-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.secondary:hover:not(:disabled) {
+  border-color: #9ca3af;
+}
+
+/* Multi-step link forms (Forms 1-3) */
+.stepForm {
+  position: relative;
+  scroll-margin-top: 24px;
+}
+
+/* Thin progress bar along the top of the window (Forms 1 and 2). */
+.progressBar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 10;
+  height: 5px;
+  background: #e5e7eb;
+}
+
+.progressBar span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  transition: width 0.3s ease;
+}
+
+/* Back arrow: outside the card on the left on wide screens, above the content on small ones. */
+.backArrow {
+  display: inline-grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  margin: -8px 0 12px -8px;
+  padding: 0;
+  color: var(--text);
+  background: transparent;
+  border: 0;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.backArrow:hover:not(:disabled) {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+@media (min-width: 960px) {
+  .backArrow {
+    position: absolute;
+    top: 0;
+    left: -72px;
+    margin: 0;
+  }
+}
+
+.linkButton {
+  padding: 0;
+  font: inherit;
+  color: var(--accent);
+  background: none;
+  border: 0;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.stepButtons {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.draftLine {
+  margin: 16px 0 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+/* Header at the top of every step of Forms 1-3: accent band, eyebrow, title, the applicant
+   as an identity card with program chips, then a numbered stepper. It bleeds to the card edges. */
+.formHeader {
+  margin: -40px -44px 32px;
+  padding: 32px 44px 24px;
+  border-top: 6px solid var(--accent);
+  border-bottom: 1px solid var(--border-soft);
+  border-radius: var(--radius) var(--radius) 0 0;
+  background: linear-gradient(180deg, var(--accent-soft) 0%, var(--surface) 100%);
+}
+
+@media (max-width: 560px) {
+  .formHeader {
+    margin: -20px -16px 24px;
+    padding: 24px 16px 20px;
+  }
+}
+
+.eyebrow {
+  margin: 0 0 6px;
+  color: var(--accent);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.formTitle {
+  margin: 0 0 8px;
+  font-size: clamp(1.6rem, 4vw, 2.1rem);
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+}
+
+.formLead {
+  margin: 0 0 20px;
+  color: var(--muted);
+  font-size: 1.05rem;
+  max-width: 60ch;
+}
+
+.identity {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 16px 32px;
+  align-items: center;
+  padding: 16px;
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+  border-radius: 12px;
+}
+
+@media (max-width: 640px) {
+  .identity {
+    grid-template-columns: 1fr;
+  }
+}
+
+.person {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.avatar {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--accent-text);
+  font-weight: 700;
+  font-size: 1.05rem;
+}
+
+.personText {
+  min-width: 0;
+}
+
+.personName {
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 650;
+  line-height: 1.3;
+}
+
+.personEmail {
+  margin: 0;
+  color: var(--muted);
+  font-size: 1rem;
+  /* Break a very long address only when it cannot fit on its own line. */
+  overflow-wrap: break-word;
+}
+
+.programsLabel {
+  margin: 0 0 6px;
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.chips li {
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  border: 1px solid #bfdbfe;
+  color: #1e40af;
+  font-size: 0.95rem;
+  font-weight: 550;
+}
+
+/* Stepper: numbered dots joined by a line; finished steps show a check and can be revisited. */
+.stepper {
+  margin-top: 24px;
+}
+
+.stepCount {
+  margin: 0 0 12px;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+.stepCount strong {
+  color: var(--text);
+}
+
+.stepper ol {
+  display: flex;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.stepper li {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+
+/* Connector line from this dot to the next one. */
+.stepper li:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  top: 15px;
+  left: calc(50% + 20px);
+  right: calc(-50% + 20px);
+  height: 2px;
+  background: var(--border);
+}
+
+.stepper li.stepDone:not(:last-child)::after {
+  background: var(--accent);
+}
+
+.stepButton {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 0 4px;
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  text-align: center;
+}
+
+button.stepButton {
+  cursor: pointer;
+}
+
+button.stepButton:hover .stepLabel {
+  text-decoration: underline;
+}
+
+.stepDot {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.stepLabel {
+  font-size: 0.85rem;
+  line-height: 1.3;
+  color: var(--muted);
+}
+
+.stepCurrent .stepDot {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-text);
+  box-shadow: 0 0 0 4px var(--focus-ring);
+}
+
+.stepCurrent .stepLabel {
+  color: var(--text);
+  font-weight: 650;
+}
+
+.stepDone .stepDot {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.stepDone .stepLabel {
+  color: var(--text);
+}
+
+/* On phones only the current step keeps its label (the others stay readable to screen readers). */
+@media (max-width: 480px) {
+  .stepTodo .stepLabel,
+  .stepDone .stepLabel {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+}
+
+.stepIntro {
+  margin-bottom: 24px;
+}

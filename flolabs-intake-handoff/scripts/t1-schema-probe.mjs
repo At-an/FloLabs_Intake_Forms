@@ -1,6 +1,6 @@
 // T1: read-only Twenty schema snapshot.
-// Run from the repo root:
-//   node --env-file=.env.local flolabs-intake-handoff/scripts/t1-schema-probe.mjs <out.json>
+// Run from flolabs-intake-handoff/ (where .env.local lives):
+//   node --env-file=.env.local scripts/t1-schema-probe.mjs <out.json>
 // Reads metadata only (via GraphQL /metadata; REST /rest/metadata returns 403 for this key),
 // Site id/name/siteId/hostname, and record counts. No People or Application records are read.
 // Never prints the API key. Re-run after T2 and diff the two snapshots.
@@ -14,7 +14,7 @@ if (!base || !key || !outFile) {
   process.exit(1);
 }
 
-const OBJECTS = ['person', 'application', 'site', 'attachment', 'subscription', 'inquiry', 'formSubmission', 'reference'];
+const OBJECTS = ['person', 'application', 'site', 'attachment', 'inquiry', 'formSubmission', 'reference'];
 
 async function gql(endpoint, query) {
   const res = await fetch(`${base}${endpoint}`, {
