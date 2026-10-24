@@ -26,17 +26,14 @@ export default async function LinkFormPreviewPage({ searchParams }: Props) {
 
   return (
     <main className={styles.page}>
-      <header className={styles.header}>
-        <h1>{title}</h1>
-        <p className={styles.lead}>{lead}</p>
-        <p className={styles.lead}>
-          Preview (development only). Try <code>?form=before-meeting</code> or <code>?form=masterclass</code>, and{' '}
-          <code>&amp;programs=AI_AGI_INTERN,FINANCE_INTERN</code>.
-        </p>
-      </header>
+      <p className={styles.lead}>
+        Preview (development only). Try <code>?form=before-meeting</code> or <code>?form=masterclass</code>, and{' '}
+        <code>&amp;programs=AI_AGI_INTERN,FINANCE_INTERN</code>.
+      </p>
       <LinkForm
         formType={formType}
         title={title}
+        lead={lead}
         endpoint={`/api/forms/${path}`}
         token="preview"
         applicationId={PREVIEW_APPLICATION_ID}

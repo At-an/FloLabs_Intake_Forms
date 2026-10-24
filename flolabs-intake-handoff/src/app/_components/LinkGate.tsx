@@ -44,19 +44,21 @@ export async function LinkGate({
     secret: getEnv().LINK_TOKEN_SECRET,
   });
 
+  // A valid link shows the form, which draws its own header on every step.
   return (
     <main className={styles.page}>
-      <header className={styles.header}>
-        <h1>{LINK_FORM_TYPES[formType].title}</h1>
-        {result.ok && <p className={styles.lead}>{LINK_FORM_TYPES[formType].lead}</p>}
-      </header>
       {result.ok ? (
         children(result.application)
       ) : (
-        <section className={styles.card} role="status">
-          <h2 className={styles.summaryTitle}>{MESSAGES[result.reason].title}</h2>
-          <p>{MESSAGES[result.reason].text}</p>
-        </section>
+        <>
+          <header className={styles.header}>
+            <h1>{LINK_FORM_TYPES[formType].title}</h1>
+          </header>
+          <section className={styles.card} role="status">
+            <h2 className={styles.summaryTitle}>{MESSAGES[result.reason].title}</h2>
+            <p>{MESSAGES[result.reason].text}</p>
+          </section>
+        </>
       )}
     </main>
   );

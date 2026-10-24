@@ -13,8 +13,10 @@ import { Turnstile } from './Turnstile';
 
 // Forms 1-3 (T12-T14): renders the form the engine builds from the applicant's programs,
 // keeps a draft in this browser while the applicant types, and posts to /api/forms/<form>.
-// Forms 1 and 2 are multi-step (about you -> all track sections in one step -> closing) with
-// Back/Next; Form 3 is one page. The whole form is still sent and checked once, at the end.
+// All three are multi-step with Back/Next: Forms 1 and 2 = about you -> all track sections in
+// one step -> closing; Form 3 = self-assessment -> references -> contacting your references.
+// Every step starts with the same header (title, applicant, stepper). The whole form is still
+// sent and checked once, at the end.
 
 type Country = { value: string; label: string; callingCode: string };
 
@@ -51,6 +53,7 @@ const TURNSTILE_MESSAGE = 'Please complete the security check below.';
 export type LinkFormProps = {
   formType: FormType;
   title: string;
+  lead: string;
   endpoint: string;
   token: string;
   applicationId: string;
@@ -117,7 +120,7 @@ function toRequest(questions: readonly AnswerQuestion[], values: Values, withRef
   return { answers, references };
 }
 
-function LinkFormInBrowser({ formType, title, endpoint, token, applicationId, programs, prefill, turnstileSiteKey, countries = [] }: LinkFormProps) {
+function LinkFormInBrowser({ formType, title, lead, endpoint, token, applicationId, programs, prefill, turnstileSiteKey, countries = [] }: LinkFormProps) {
   const idPrefix = useId();
   const id = (key: string) => `${idPrefix}-${key.replaceAll('.', '-')}`;
 
@@ -125,7 +128,6 @@ function LinkFormInBrowser({ formType, title, endpoint, token, applicationId, pr
   const schema = useMemo(() => linkFormSchema(form, { applicantEmail: prefill.email }), [form, prefill.email]);
   const questions = useMemo(() => answerQuestions(form), [form]);
   const withReferences = formType === 'MASTERCLASS';
-  const multiStep = formType !== 'MASTERCLASS';
   const storageKey = draftKey(formType, applicationId);
 
   // Error keys per step, in the order the fields appear; Turnstile is on the last step.
@@ -142,23 +144,15 @@ function LinkFormInBrowser({ formType, title, endpoint, token, applicationId, pr
       references: false,
       keys: sections.flatMap((s) => keysOf(s.id)),
     });
-    const list: Step[] = multiStep
-      ? [
-          ...form.sections.filter((s) => s.kind === 'intro').map((s) => stepOf([s], s.title)),
-          stepOf(form.sections.filter((s) => s.kind === 'track'), tracksTitle),
-          ...form.sections.filter((s) => s.kind === 'closing').map((s) => stepOf([s], s.title)),
-        ].filter((step) => step.sectionIds.length > 0)
-      : [
-          {
-            title: '',
-            sectionIds: form.sections.map((s) => s.id),
-            references: withReferences,
-            keys: form.sections.flatMap((s) => [...(s.kind === 'closing' && withReferences ? referenceKeys : []), ...keysOf(s.id)]),
-          },
-        ];
+    const list: Step[] = [
+      ...form.sections.filter((s) => s.kind === 'intro').map((s) => stepOf([s], s.title)),
+      stepOf(form.sections.filter((s) => s.kind === 'track'), tracksTitle),
+      ...(withReferences ? [{ title: 'References', sectionIds: [], references: true, keys: referenceKeys }] : []),
+      ...form.sections.filter((s) => s.kind === 'closing').map((s) => stepOf([s], s.title)),
+    ].filter((step) => step.sectionIds.length > 0 || step.references);
     const last = list.length - 1;
     return list.map((step, index) => (index === last ? { ...step, keys: [...step.keys, 'turnstile'] } : step));
-  }, [form, formType, multiStep, withReferences]);
+  }, [form, formType, withReferences]);
   // Question names for the error summary ("Why are you interested… – Please answer this question.").
   const fieldNames = useMemo(() => {
     const names: Record<string, string> = { turnstile: 'Security check' };
@@ -261,7 +255,7 @@ function LinkFormInBrowser({ formType, title, endpoint, token, applicationId, pr
     if (next !== steps.length - 1) setTurnstileToken(null);
     setStep(next);
     setFormError(null);
-    if (multiStep) setDirty(true);
+    setDirty(true);
     requestAnimationFrame(() => topRef.current?.scrollIntoView({ block: 'start' }));
   }
 
@@ -329,9 +323,78 @@ function LinkFormInBrowser({ formType, title, endpoint, token, applicationId, pr
     }
   }
 
+  const initials = prefill.fullName
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]!.toUpperCase())
+    .join('');
+
+  // The header at the top of every step (and of the thank-you screen, without the stepper).
+  const header = (withSteps: boolean) => (
+    <header className={styles.formHeader}>
+      <p className={styles.eyebrow}>FloLabs Internship Program</p>
+      <h1 className={styles.formTitle}>{title}</h1>
+      <p className={styles.formLead}>{lead}</p>
+
+      <div className={styles.identity}>
+        <div className={styles.person}>
+          <span className={styles.avatar} aria-hidden="true">
+            {initials || '?'}
+          </span>
+          <div className={styles.personText}>
+            <p className={styles.personName}>{prefill.fullName || '—'}</p>
+            <p className={styles.personEmail}>{prefill.email || '—'}</p>
+          </div>
+        </div>
+        <div className={styles.programs}>
+          <p className={styles.programsLabel}>Program{prefill.programs.length === 1 ? '' : 's'} applied for</p>
+          <ul className={styles.chips}>
+            {prefill.programs.map((program) => (
+              <li key={program}>{program}</li>
+            ))}
+          </ul>
+        </div>
+      </div>
+
+      {withSteps && (
+        <nav aria-label="Form steps" className={styles.stepper}>
+          <p className={styles.stepCount}>
+            Step {step + 1} of {steps.length}: <strong>{current.title}</strong>
+          </p>
+          <ol>
+            {steps.map((s, index) => {
+              const state = index === step ? styles.stepCurrent : index < step ? styles.stepDone : styles.stepTodo;
+              const dot = (
+                <>
+                  <span className={styles.stepDot} aria-hidden="true">
+                    {index < step ? '✓' : index + 1}
+                  </span>
+                  <span className={styles.stepLabel}>{s.title}</span>
+                </>
+              );
+              return (
+                <li key={s.title} className={state} aria-current={index === step ? 'step' : undefined}>
+                  {index < step ? (
+                    <button type="button" className={styles.stepButton} onClick={() => goToStep(index)}>
+                      {dot}
+                    </button>
+                  ) : (
+                    <span className={styles.stepButton}>{dot}</span>
+                  )}
+                </li>
+              );
+            })}
+          </ol>
+        </nav>
+      )}
+    </header>
+  );
+
   if (status === 'done' || status === 'already') {
     return (
       <section className={styles.card} aria-live="polite">
+        {header(false)}
         <h2 ref={doneRef} tabIndex={-1} className={styles.doneTitle}>
           {status === 'done' ? `Thank you, ${prefill.fullName}! Your answers were sent.` : 'You have already sent this form.'}
         </h2>
@@ -615,11 +678,9 @@ function LinkFormInBrowser({ formType, title, endpoint, token, applicationId, pr
 
   return (
     <form ref={topRef} className={`${styles.card} ${styles.stepForm}`} onSubmit={onSubmit} noValidate aria-busy={status === 'sending'} aria-label={title}>
-      {multiStep && (
-        <div className={styles.progressBar} aria-hidden="true">
-          <span style={{ width: `${((step + 1) / steps.length) * 100}%` }} />
-        </div>
-      )}
+      <div className={styles.progressBar} aria-hidden="true">
+        <span style={{ width: `${((step + 1) / steps.length) * 100}%` }} />
+      </div>
       {step > 0 && (
         <button type="button" className={styles.backArrow} onClick={() => goToStep(step - 1)} disabled={status === 'sending'} aria-label="Back to the previous step">
           <svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true">
@@ -627,44 +688,18 @@ function LinkFormInBrowser({ formType, title, endpoint, token, applicationId, pr
           </svg>
         </button>
       )}
-      <section className={styles.applicant} aria-label="Your details">
-        <dl className={styles.prefill}>
-          <dt>Full name</dt>
-          <dd>{prefill.fullName || '—'}</dd>
-          <dt>Email</dt>
-          <dd>{prefill.email || '—'}</dd>
-          <dt>Program{prefill.programs.length === 1 ? '' : 's'} applied for</dt>
-          <dd>{prefill.programs.join(', ') || '—'}</dd>
-        </dl>
-        {formType === 'CONTACTED' &&
-          step === 0 &&
-          form.trackStatements.map((s) => (
-            <p key={s.program} className={styles.statement}>
-              {s.text}
-            </p>
-          ))}
-        {step === 0 && <p className={styles.hint}>These details come from your application. If something is wrong, write to {HR_EMAIL}.</p>}
-      </section>
+      {header(true)}
 
-      {multiStep && (
-        <nav aria-label="Form steps" className={styles.progress}>
-          <p className={styles.stepCount}>
-            Step {step + 1} of {steps.length}
-          </p>
-          <ol className={styles.steps}>
-            {steps.map((s, index) => (
-              <li key={s.title} className={index === step ? styles.stepCurrent : index < step ? styles.stepDone : undefined} aria-current={index === step ? 'step' : undefined}>
-                {index < step ? (
-                  <button type="button" className={styles.stepLink} onClick={() => goToStep(index)}>
-                    {s.title}
-                  </button>
-                ) : (
-                  <span>{s.title}</span>
-                )}
-              </li>
+      {step === 0 && (
+        <div className={styles.stepIntro}>
+          {formType === 'CONTACTED' &&
+            form.trackStatements.map((s) => (
+              <p key={s.program} className={styles.statement}>
+                {s.text}
+              </p>
             ))}
-          </ol>
-        </nav>
+          <p className={styles.hint}>Your name, email and programs come from your application. If something is wrong, write to {HR_EMAIL}.</p>
+        </div>
       )}
 
       <div ref={summaryRef} tabIndex={-1} className={styles.summaryAnchor}>
@@ -686,10 +721,10 @@ function LinkFormInBrowser({ formType, title, endpoint, token, applicationId, pr
         )}
       </div>
 
+      {current.references && referencesBlock}
       {form.sections
         .filter((section) => current.sectionIds.includes(section.id))
-        .map((section) => [
-          section.kind === 'closing' && current.references ? referencesBlock : null,
+        .map((section) => (
           <fieldset key={section.id} className={styles.section}>
             <legend className={styles.sectionTitle}>{section.title}</legend>
             {section.groups.map((group, index) =>
@@ -702,8 +737,8 @@ function LinkFormInBrowser({ formType, title, endpoint, token, applicationId, pr
                 <div key={`group-${index}`}>{group.questions.map(renderQuestion)}</div>
               ),
             )}
-          </fieldset>,
-        ])}
+          </fieldset>
+        ))}
 
       {isLast && (
         <div className={styles.field} id={id('turnstile')} tabIndex={-1}>
