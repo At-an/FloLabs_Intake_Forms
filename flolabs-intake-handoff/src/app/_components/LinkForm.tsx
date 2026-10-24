@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useMemo, useRef, useState, useSyncExternalStore, type FormEvent, type ReactNode } from 'react';
 import { HR_EMAIL, TURNSTILE_ACTIONS } from '@/shared/config/application';
-import { KNOWN_DURATIONS, REFERENCES_INTRO } from '@/shared/config/link-forms';
+import { KNOWN_DURATIONS, LINK_FORM_CONFIGS, REFERENCES_INTRO } from '@/shared/config/link-forms';
 import { answerQuestions, isVisible, type AnswerQuestion, type FormType, type Prefill, type Question } from '@/shared/forms/engine';
 import { fieldErrors } from '@/shared/forms/field-errors';
 import { REFERENCE_KEYS, REFERENCE_LIMITS, buildLinkForm, linkFormSchema, type ReferenceKey } from '@/shared/forms/link-forms';
@@ -13,7 +13,7 @@ import { Turnstile } from './Turnstile';
 
 // Forms 1-3 (T12-T14): renders the form the engine builds from the applicant's programs,
 // keeps a draft in this browser while the applicant types, and posts to /api/forms/<form>.
-// Forms 1 and 2 are multi-step (one step per section: about you, each track, closing) with
+// Forms 1 and 2 are multi-step (about you -> all track sections in one step -> closing) with
 // Back/Next; Form 3 is one page. The whole form is still sent and checked once, at the end.
 
 type Country = { value: string; label: string; callingCode: string };
@@ -135,8 +135,19 @@ function LinkFormInBrowser({ formType, title, endpoint, token, applicationId, pr
         .find((s) => s.id === sectionId)!
         .groups.flatMap((g) => g.questions.filter((q) => q.kind !== 'display').map((q) => `answers.${q.id}`));
     const referenceKeys = REFERENCE_KEYS.flatMap((key) => REFERENCE_FIELDS.map((field) => `references.${key}.${field}`));
+    const tracksTitle = LINK_FORM_CONFIGS[formType].tracksStepTitle ?? 'Your track';
+    const stepOf = (sections: typeof form.sections, title: string): Step => ({
+      title,
+      sectionIds: sections.map((s) => s.id),
+      references: false,
+      keys: sections.flatMap((s) => keysOf(s.id)),
+    });
     const list: Step[] = multiStep
-      ? form.sections.map((s) => ({ title: s.title, sectionIds: [s.id], references: false, keys: keysOf(s.id) }))
+      ? [
+          ...form.sections.filter((s) => s.kind === 'intro').map((s) => stepOf([s], s.title)),
+          stepOf(form.sections.filter((s) => s.kind === 'track'), tracksTitle),
+          ...form.sections.filter((s) => s.kind === 'closing').map((s) => stepOf([s], s.title)),
+        ].filter((step) => step.sectionIds.length > 0)
       : [
           {
             title: '',
@@ -147,7 +158,26 @@ function LinkFormInBrowser({ formType, title, endpoint, token, applicationId, pr
         ];
     const last = list.length - 1;
     return list.map((step, index) => (index === last ? { ...step, keys: [...step.keys, 'turnstile'] } : step));
-  }, [form, multiStep, withReferences]);
+  }, [form, formType, multiStep, withReferences]);
+  // Question names for the error summary ("Why are you interested… – Please answer this question.").
+  const fieldNames = useMemo(() => {
+    const names: Record<string, string> = { turnstile: 'Security check' };
+    for (const q of questions) names[`answers.${q.id}`] = q.label.length > 70 ? `${q.label.slice(0, 67).trimEnd()}…` : q.label;
+    const referenceNames: Record<(typeof REFERENCE_FIELDS)[number], string> = {
+      fullName: 'Full name',
+      title: 'Position / Title',
+      organization: 'Organization / Institution',
+      relationship: 'Relationship to you',
+      email: 'Email address',
+      'phone.country': 'Phone country code',
+      'phone.number': 'Phone number',
+      knownDuration: 'How long they have known you',
+    };
+    REFERENCE_KEYS.forEach((key, index) => {
+      for (const field of REFERENCE_FIELDS) names[`references.${key}.${field}`] = `Reference ${index + 1}, ${referenceNames[field]}`;
+    });
+    return names;
+  }, [questions]);
   const stepOf = (key: string) => Math.max(0, steps.findIndex((s) => s.keys.includes(key)));
 
   // Restore the unsent answers of an earlier visit on this device, if any.
@@ -401,7 +431,7 @@ function LinkFormInBrowser({ formType, title, endpoint, token, applicationId, pr
         return (
           <Choices key={q.id} id={id(key)} label={q.label} required={q.required} hint={q.help} error={error} describedBy={common['aria-describedby']}>
             {options.map((o) => (
-              <label key={o.value} className={styles.check}>
+              <label key={o.value} className={`${styles.check} ${styles.option}`}>
                 <input
                   type="radio"
                   name={`${idPrefix}-${q.id}`}
@@ -426,7 +456,7 @@ function LinkFormInBrowser({ formType, title, endpoint, token, applicationId, pr
               {q.options.map((o) => {
                 const checked = chosen.includes(o.value);
                 return (
-                  <label key={o.value} className={styles.check}>
+                  <label key={o.value} className={`${styles.check} ${styles.option}`}>
                     <input
                       type="checkbox"
                       value={o.value}
@@ -585,6 +615,18 @@ function LinkFormInBrowser({ formType, title, endpoint, token, applicationId, pr
 
   return (
     <form ref={topRef} className={`${styles.card} ${styles.stepForm}`} onSubmit={onSubmit} noValidate aria-busy={status === 'sending'} aria-label={title}>
+      {multiStep && (
+        <div className={styles.progressBar} aria-hidden="true">
+          <span style={{ width: `${((step + 1) / steps.length) * 100}%` }} />
+        </div>
+      )}
+      {step > 0 && (
+        <button type="button" className={styles.backArrow} onClick={() => goToStep(step - 1)} disabled={status === 'sending'} aria-label="Back to the previous step">
+          <svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true">
+            <path d="M20 12H5M11 18l-6-6 6-6" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
+      )}
       <section className={styles.applicant} aria-label="Your details">
         <dl className={styles.prefill}>
           <dt>Full name</dt>
@@ -634,7 +676,9 @@ function LinkFormInBrowser({ formType, title, endpoint, token, applicationId, pr
             <ul>
               {visibleErrors.map((key) => (
                 <li key={key}>
-                  <a href={`#${id(key)}`}>{errors[key]}</a>
+                  <a href={`#${id(key)}`}>
+                    <strong>{fieldNames[key]}</strong> – {errors[key]}
+                  </a>
                 </li>
               ))}
             </ul>

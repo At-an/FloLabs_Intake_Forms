@@ -56,6 +56,8 @@ export type FormConfig = {
   /** Section headings; default "About you" and "Closing". */
   introTitle?: string;
   closingTitle?: string;
+  /** Name of the step that holds all track sections in a multi-step form (Forms 1 and 2). */
+  tracksStepTitle?: string;
   /** Per-track sections; Form 3 has none. */
   tracks: Partial<Record<TrackValue, TrackConfig>>;
   /** Asked once at the end. */

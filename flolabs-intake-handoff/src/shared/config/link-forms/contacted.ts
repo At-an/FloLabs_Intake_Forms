@@ -12,6 +12,7 @@ const TECHNICAL_WRITING_SNIPPET =
 export const CONTACTED_FORM: FormConfig = {
   formType: 'CONTACTED',
   version: 'contacted-v1',
+  tracksStepTitle: 'Interest',
   intro: [
     textarea('G4', 'Why are you interested in this specific program?'),
     textarea('G5', 'What do you hope to learn or become capable of doing through this program?'),

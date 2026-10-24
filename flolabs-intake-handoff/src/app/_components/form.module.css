@@ -17,9 +17,10 @@
 
 .card {
   background: var(--surface);
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-soft);
   border-radius: var(--radius);
-  padding: 24px;
+  padding: 40px 44px;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04), 0 8px 24px rgba(16, 24, 40, 0.05);
 }
 
 .section {
@@ -47,7 +48,7 @@
     grid-template-columns: 1fr;
   }
   .card {
-    padding: 16px;
+    padding: 20px 16px;
   }
 }
 
@@ -58,8 +59,9 @@
 
 .label {
   display: block;
-  font-weight: 550;
-  margin-bottom: 4px;
+  font-size: 1.05rem;
+  font-weight: 500;
+  margin-bottom: 8px;
 }
 
 .required {
@@ -75,13 +77,25 @@
 .input {
   display: block;
   width: 100%;
-  min-height: 44px;
-  padding: 8px 12px;
+  min-height: 46px;
+  padding: 10px 14px;
   font: inherit;
   color: var(--text);
   background: var(--input-bg);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: 8px;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.input:hover {
+  border-color: #9ca3af;
+}
+
+/* Focus: blue border + soft ring, as in the reference form. */
+.input:focus-visible {
+  outline: none;
+  border-color: var(--focus);
+  box-shadow: 0 0 0 3px var(--focus-ring);
 }
 
 .file {
@@ -103,11 +117,35 @@
   box-shadow: 0 0 0 1px var(--error);
 }
 
+.input[aria-invalid='true']:focus-visible {
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.2);
+}
+
 .error {
-  margin: 6px 0 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 8px 0 0;
   color: var(--error);
-  font-size: 0.9rem;
-  font-weight: 550;
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+
+/* Round "!" icon before every error message. */
+.error::before {
+  content: '!';
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  margin-top: 2px;
+  border-radius: 50%;
+  background: var(--error);
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1;
 }
 
 .ok {
@@ -126,8 +164,8 @@
 }
 
 .track {
-  border: 1px solid var(--border);
-  border-radius: 6px;
+  border: 1px solid var(--border-soft);
+  border-radius: 12px;
   margin: 0;
   padding: 8px 14px 10px;
   min-width: 0;
@@ -163,9 +201,9 @@
 }
 
 .summary {
-  border: 2px solid var(--error);
+  border: 1px solid var(--error);
   background: var(--error-bg);
-  border-radius: 6px;
+  border-radius: 10px;
   padding: 12px 16px;
   margin-bottom: 24px;
 }
@@ -187,20 +225,26 @@
 .formError {
   border-left: 4px solid var(--error);
   background: var(--error-bg);
+  border-radius: 8px;
   padding: 10px 14px;
   margin: 0 0 16px;
 }
 
 .submit {
   min-height: 48px;
-  padding: 0 24px;
+  padding: 0 28px;
   font: inherit;
-  font-weight: 650;
+  font-weight: 600;
   color: var(--accent-text);
   background: var(--accent);
   border: 0;
-  border-radius: 6px;
+  border-radius: 8px;
   cursor: pointer;
+  transition: background 0.15s;
+}
+
+.submit:hover:not(:disabled) {
+  background: var(--accent-hover);
 }
 
 .submit:disabled {
@@ -293,9 +337,10 @@
 
 .statement {
   margin: 0 0 8px;
-  padding: 8px 12px;
+  padding: 10px 14px;
   border-left: 4px solid var(--accent);
-  background: var(--input-bg);
+  border-radius: 8px;
+  background: var(--accent-soft);
 }
 
 .choices {
@@ -309,8 +354,42 @@
 
 .options {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-  gap: 0 16px;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 10px;
+}
+
+.options .option {
+  margin: 0;
+  max-width: none;
+}
+
+/* Radio/checkbox answers as bordered boxes; the chosen one turns blue. */
+.option {
+  align-items: center;
+  max-width: 440px;
+  margin: 0 0 10px;
+  padding: 12px 14px;
+  background: var(--input-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.option:hover {
+  border-color: var(--focus);
+}
+
+.option:has(input:checked) {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.option:has(input:focus-visible) {
+  box-shadow: 0 0 0 3px var(--focus-ring);
+}
+
+.option input {
+  margin: 0;
 }
 
 .number {
@@ -321,7 +400,8 @@
   margin: 0 0 16px;
   padding: 12px 16px;
   border-left: 4px solid var(--border);
-  background: var(--input-bg);
+  border-radius: 8px;
+  background: #f9fafb;
   font-style: italic;
 }
 
@@ -337,14 +417,18 @@
 }
 
 .secondary {
-  min-height: 44px;
-  padding: 0 16px;
+  min-height: 46px;
+  padding: 0 18px;
   font: inherit;
   color: var(--text);
-  background: transparent;
+  background: var(--input-bg);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: 8px;
   cursor: pointer;
+}
+
+.secondary:hover:not(:disabled) {
+  border-color: #9ca3af;
 }
 
 /* Applicant details at the top of Forms 1-3 */
@@ -366,7 +450,54 @@
 
 /* Multi-step forms (Forms 1 and 2) */
 .stepForm {
-  scroll-margin-top: 16px;
+  position: relative;
+  scroll-margin-top: 24px;
+}
+
+/* Thin progress bar along the top of the window (Forms 1 and 2). */
+.progressBar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 10;
+  height: 5px;
+  background: #e5e7eb;
+}
+
+.progressBar span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  transition: width 0.3s ease;
+}
+
+/* Back arrow: outside the card on the left on wide screens, above the content on small ones. */
+.backArrow {
+  display: inline-grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  margin: -8px 0 12px -8px;
+  padding: 0;
+  color: var(--text);
+  background: transparent;
+  border: 0;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.backArrow:hover:not(:disabled) {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+@media (min-width: 960px) {
+  .backArrow {
+    position: absolute;
+    top: 0;
+    left: -72px;
+    margin: 0;
+  }
 }
 
 .progress {
@@ -404,7 +535,8 @@
 
 .stepCurrent {
   border-color: var(--accent) !important;
-  color: var(--text) !important;
+  background: var(--accent-soft);
+  color: var(--accent-hover) !important;
   font-weight: 600;
 }
 
