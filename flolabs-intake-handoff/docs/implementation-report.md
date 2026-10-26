@@ -111,6 +111,7 @@ The same `submissionKey` returns the original record. Concurrent requests share 
 | Launch runbook, rate limit | `docs/production-launch.md`; per-IP limit raised to 50 / 10 min (FloLabs decision), one `RATE_LIMITS` constant. | `1055ecb`, `340fc64` |
 | **T16** Documentation | This report, `hr-guide.md`, the runbook updated for the GitHub repository. | `ac4f833` |
 | Pre-launch fixes (project lead, 26 Oct) | One canonical site registry (`src/shared/config/sites.ts`) used by the CSP and `t2-sites.mjs`; missing / unknown / inactive sites refused before any Twenty write (`SITE_NOT_ALLOWED`); `/embed/*` frameable only by the 16 www origins; Form 1-3 links expire after 21 days (`EXPIRED` / `LINK_EXPIRED`); production port 3001 in the runbook; `TWENTY_BASE_URL` may be `http://127.0.0.1` / `http://localhost`, and the CV upload accepts Twenty's own address. | (this commit) |
+| Application form UX (26 Oct) | Searchable phone country code (name, `+237` or ISO code; keyboard and screen-reader friendly), and picking a code fills in the matching Country/Region (still editable). Development only: the embed test page may frame the app's own `/embed` pages (`frame-src 'self'`), which the T15 CSP had blocked. | (this commit) |
 
 ## 5. Twenty schema changes (all approved before applying)
 

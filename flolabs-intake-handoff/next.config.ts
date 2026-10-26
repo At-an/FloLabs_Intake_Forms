@@ -20,7 +20,8 @@ function contentSecurityPolicy(frameAncestors: string): string {
     "img-src 'self' data:",
     "font-src 'self'",
     `connect-src 'self' ${TURNSTILE}${development ? ' ws: wss:' : ''}`,
-    `frame-src ${TURNSTILE}`,
+    // Development: the /dev/embed-test page frames this app's own /embed pages.
+    `frame-src ${development ? "'self' " : ''}${TURNSTILE}`,
     "object-src 'none'",
     "base-uri 'self'",
     "form-action 'self'",
