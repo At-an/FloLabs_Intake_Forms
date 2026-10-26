@@ -18,6 +18,20 @@ describe('parseEnv', () => {
     }
   });
 
+  it.each(['http://127.0.0.1:3000', 'http://localhost:3000/', 'http://127.0.0.1:8080'])(
+    'allows plain HTTP to Twenty on this machine: %s',
+    (url) => {
+      expect(parseEnv({ TWENTY_BASE_URL: url, TWENTY_API_KEY: validKey }).TWENTY_BASE_URL).toBe(url.replace(/\/$/, ''));
+    },
+  );
+
+  it.each(['http://10.0.0.5:3000', 'http://127.0.0.1.example.com:3000', 'http://localhost@crm.example.com', 'ftp://127.0.0.1:3000'])(
+    'rejects remote or non-web HTTP: %s',
+    (url) => {
+      expect(() => parseEnv({ TWENTY_BASE_URL: url, TWENTY_API_KEY: validKey })).toThrow(/TWENTY_BASE_URL/);
+    },
+  );
+
   it('rejects a non-https base URL', () => {
     expect(() => parseEnv({ TWENTY_BASE_URL: 'http://crm.example.com', TWENTY_API_KEY: validKey })).toThrow(
       /TWENTY_BASE_URL/,

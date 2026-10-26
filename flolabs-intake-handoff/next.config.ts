@@ -20,7 +20,8 @@ function contentSecurityPolicy(frameAncestors: string): string {
     "img-src 'self' data:",
     "font-src 'self'",
     `connect-src 'self' ${TURNSTILE}${development ? ' ws: wss:' : ''}`,
-    `frame-src ${TURNSTILE}`,
+    // Development: the /dev/embed-test page frames this app's own /embed pages.
+    `frame-src ${development ? "'self' " : ''}${TURNSTILE}`,
     "object-src 'none'",
     "base-uri 'self'",
     "form-action 'self'",
@@ -51,7 +52,7 @@ const nextConfig: NextConfig = {
         ],
       },
       {
-        // Embed pages: any HTTPS website may frame them (decided 2026-10-24, src/shared/config/sites.ts).
+        // Embed pages: only the FloLabs websites may frame them (src/shared/config/sites.ts).
         source: '/embed/:form*',
         headers: [...baseHeaders, { key: 'Content-Security-Policy', value: contentSecurityPolicy(embedFrameAncestors(development)) }],
       },

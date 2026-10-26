@@ -5,7 +5,7 @@ import type { TwentyClient } from '../twenty/client';
 import { FIELD_IDS } from '../twenty/fields';
 import type { CheckedCv } from './cv';
 import { upsertPersonByEmail } from '../people/person';
-import { resolveSite } from '../sites';
+import { requireActiveSite } from '../sites';
 import { toApplicationInput, toPersonData } from './mapping';
 
 export type SubmitResult = { applicationId: string; duplicate: boolean };
@@ -27,7 +27,8 @@ export type SubmitDeps = {
 
 /**
  * Exactly one Application per submission (CLAUDE.md section 6). A repeated submissionKey
- * returns the original Application without writing anything (rule 6). The CV is uploaded
+ * returns the original Application without writing anything (rule 6). A missing, unknown or
+ * inactive site is refused before anything is written, the CV included. The CV is uploaded
  * before any record is written, so a failed upload creates no Person or Application.
  */
 export async function submitApplication(
@@ -42,8 +43,7 @@ export async function submitApplication(
     return { applicationId: existing.id, duplicate: true };
   }
 
-  const site = await resolveSite(twenty, siteKey);
-  if (site.status !== 'KNOWN') logger.warn('application.site_not_known', { code: `SITE_${site.status}` });
+  const site = await requireActiveSite(twenty, siteKey, logger, 'application.site_refused');
 
   const { fileId } = await twenty.uploadFile({
     filename: cv.label,
@@ -54,13 +54,13 @@ export async function submitApplication(
 
   const submittedAt = now().toISOString();
   const { personId } = await upsertPersonByEmail(
-    toPersonData(data, { submittedAt, consentSiteKey: site.status === 'KNOWN' ? site.keyReceived : undefined }),
+    toPersonData(data, { submittedAt, consentSiteKey: site.keyReceived }),
     { twenty, logger },
   );
 
   const { id: applicationId } = await twenty.createApplication(
     toApplicationInput(data, { personId, site, submittedAt, cv: { fileId, label: cv.label } }),
   );
-  logger.info('application.created', { applicationId, personId, siteId: site.siteId, code: `SITE_${site.status}` });
+  logger.info('application.created', { applicationId, personId, siteId: site.siteId, code: 'SITE_KNOWN' });
   return { applicationId, duplicate: false };
 }

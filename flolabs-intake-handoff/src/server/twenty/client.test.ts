@@ -126,14 +126,14 @@ describe('Twenty client', () => {
       data: { createFileUpload: { fileId: ID, uploadUrl, contentType: 'application/octet-stream' } },
     });
 
-    function sequence(uploadUrl: string, putStatus = 204) {
+    function sequence(uploadUrl: string, putStatus = 204, baseUrl = BASE) {
       const seen: { url: string; method: string; body: unknown }[] = [];
       const responses = [json(target(uploadUrl)), new Response(null, { status: putStatus }), json({ data: { completeFileUpload: { id: ID } } })];
       const fetchImpl = vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
         seen.push({ url: String(url), method: init!.method!, body: init!.body });
         return responses.shift()!;
       }) as unknown as typeof fetch;
-      return { client: createTwentyClient({ baseUrl: BASE, apiKey: KEY, fetch: fetchImpl }), seen };
+      return { client: createTwentyClient({ baseUrl, apiKey: KEY, fetch: fetchImpl }), seen };
     }
 
     it('creates the target on /metadata, PUTs the bytes, then completes the upload', async () => {
@@ -152,6 +152,26 @@ describe('Twenty client', () => {
       const { client } = sequence('https://acct.r2.cloudflarestorage.com/bucket/key?X-Amz-Signature=x');
       await expect(client.uploadFile({ filename: 'cv.pdf', bytes, fieldMetadataId: 'f' })).resolves.toEqual({ fileId: ID });
     });
+
+    it.each([
+      'http://127.0.0.1:3000/file-upload/abc?token=signed',
+      'https://acct.r2.cloudflarestorage.com/bucket/key?X-Amz-Signature=x',
+    ])('with Twenty on this machine (http://127.0.0.1:3000), allows %s', async (uploadUrl) => {
+      const { client, seen } = sequence(uploadUrl, 204, 'http://127.0.0.1:3000');
+      await expect(client.uploadFile({ filename: 'cv.pdf', bytes, fieldMetadataId: 'f' })).resolves.toEqual({ fileId: ID });
+      expect(seen[1]!.url).toBe(uploadUrl);
+    });
+
+    it.each(['http://127.0.0.1:4000/file-upload/abc', 'http://localhost:3000/file-upload/abc', 'http://acct.r2.cloudflarestorage.com/bucket/key'])(
+      'with Twenty on this machine, refuses %s (another port, another host name, R2 without HTTPS)',
+      async (uploadUrl) => {
+        const { client, seen } = sequence(uploadUrl, 204, 'http://127.0.0.1:3000');
+        await expect(client.uploadFile({ filename: 'cv.pdf', bytes, fieldMetadataId: 'f' })).rejects.toMatchObject({
+          code: 'UNEXPECTED_UPLOAD_HOST',
+        });
+        expect(seen).toHaveLength(1);
+      },
+    );
 
     it.each(['https://evil.example.net/upload', 'http://crm.example.com/file-upload/abc', 'https://r2.cloudflarestorage.com.evil.io/x'])(
       'refuses to send the file to %s',

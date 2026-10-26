@@ -103,13 +103,15 @@ The same `submissionKey` returns the original record. Concurrent requests share 
 | **T6c** CV upload | Multipart request; file-signature check (PDF / DOCX), 5 MB cap; upload via `createFileUpload` → PUT → `completeFileUpload` before any record is written; upload host allow-list. Live: download identical, unsigned URL returns 403, renamed .exe refused. T6d (overlay viewer) not needed. | `eaf18d3` |
 | **T7** Turnstile + rate limits | Server-side siteverify, fails closed, action checked; limits per IP and per email (5 / 30 min, approved); in-flight lock per key. | `bcf4986`, `0460d1c` |
 | **T2b/T2d**, **T6b**, **T8**, **T9** | Inquiry object + Person consent fields + Inquiry site fields; `embed.js` + `/embed/[form]`; Newsletter (single opt-in, approved wording) and Contact Us. Embedding allowed on **any HTTPS website**; unknown/inactive/missing sites recorded and marked, never refused. | `882fc95`, `c673bc3`, `469598f` |
-| **T2e**, **T10**, **T11** | Form Submission and Reference objects; signed links (HMAC-SHA256, no expiry, single use) with `npm run make-link`; form engine (sections per applicant, cross-track merge, track statements, pre-fill, answers schema, markdown summary, typed fields). | `ce94adc` |
+| **T2e**, **T10**, **T11** | Form Submission and Reference objects; signed links (HMAC-SHA256, single use; 21-day expiry added in the pre-launch fixes) with `npm run make-link`; form engine (sections per applicant, cross-track merge, track statements, pre-fill, answers schema, markdown summary, typed fields). | `ce94adc` |
 | **T12-T14** Forms 1-3 | Question configs from the source templates + spec section 8 (all 40 programs); `POST /api/forms/<form>`; UI with browser drafts (approved); Form 3 saves References first, the Form Submission last. | `dc1a422` |
 | UX iterations | Applicant-facing titles ("Tell Us More About You", "Getting Ready for Your Orientation", "Final Steps Before Your Interview"); multi-step Forms 1-2, then Form 3; step names "Interest" / "Thought and Feedback"; back arrow; new look (white card, blue accent, option boxes, error icons); shared header on every step. | `c646fa4`, `5051036`, `859520b`, `7e29d74` |
 | Live verification | After the team lead granted object permissions: Contact Us and Forms 1-3 written and read back in Twenty (see section 7). | `17837b2` |
 | **T15** Security pass | See section 6. | `f7012bf` |
 | Launch runbook, rate limit | `docs/production-launch.md`; per-IP limit raised to 50 / 10 min (FloLabs decision), one `RATE_LIMITS` constant. | `1055ecb`, `340fc64` |
-| **T16** Documentation | This report, `hr-guide.md`, the runbook updated for the GitHub repository. | (this commit) |
+| **T16** Documentation | This report, `hr-guide.md`, the runbook updated for the GitHub repository. | `ac4f833` |
+| Pre-launch fixes (project lead, 26 Oct) | One canonical site registry (`src/shared/config/sites.ts`) used by the CSP and `t2-sites.mjs`; missing / unknown / inactive sites refused before any Twenty write (`SITE_NOT_ALLOWED`); `/embed/*` frameable only by the 16 www origins; Form 1-3 links expire after 21 days (`EXPIRED` / `LINK_EXPIRED`); production port 3001 in the runbook; `TWENTY_BASE_URL` may be `http://127.0.0.1` / `http://localhost`, and the CV upload accepts Twenty's own address. | (this commit) |
+| Application form UX (26 Oct) | Searchable phone country code (name, `+237` or ISO code; keyboard and screen-reader friendly), and picking a code fills in the matching Country/Region (still editable). Development only: the embed test page may frame the app's own `/embed` pages (`frame-src 'self'`), which the T15 CSP had blocked. | (this commit) |
 
 ## 5. Twenty schema changes (all approved before applying)
 
@@ -142,7 +144,7 @@ Twenty-specific findings that shaped the code:
 | Oversized requests | Hard cap on body reads, whatever Content-Length says (T15) | `readBodyCapped` |
 | Malicious files | PDF/DOCX by file signature, 5 MB cap, safe file label; upload host allow-list (no SSRF) | `applications/cv.ts`, `twenty/client.ts` |
 | Injected content for HR | Applicant text markdown-escaped and links normalised in `answersSummary` (T15) | `engine/answers.ts` |
-| Framing and XSS | CSP (self + Turnstile; no plugins; base-uri/form-action locked), HSTS, Permissions-Policy, nosniff; only `/embed/*` frameable (any HTTPS site); React escaping, no raw HTML | `next.config.ts` |
+| Framing and XSS | CSP (self + Turnstile; no plugins; base-uri/form-action locked), HSTS, Permissions-Policy, nosniff; only `/embed/*` frameable, and only by the 16 FloLabs `https://www.` origins; React escaping, no raw HTML | `next.config.ts` |
 | Data leaks | Logs: allow-listed IDs, codes and numbers only (runtime redaction); generic public errors; no CORS headers | `logger.ts`, `errors.ts` |
 | Misconfiguration | Production refuses to start without Turnstile keys, `LINK_TOKEN_SECRET` and `TRUSTED_IP_HEADER`; `.env*` ignored by git | `env.ts`, `.gitignore` |
 | Dependencies | `npm audit` 0 vulnerabilities; registry signatures verified | T15 |
@@ -198,6 +200,7 @@ Twenty-specific findings that shaped the code:
 | 24 Oct | Form order not enforced; Amazon SES out of scope (later automation) |
 | 24 Oct | Per-IP limit 50 per 10 minutes |
 | 24 Oct | Branch `develop` (work) and `main` (production); public repository `at-an/FloLabs_Intake_Forms`; commits keep the author's own email; internal briefs and schema snapshots stay in the repository |
+| 26 Oct (project lead) | **Replaces three 24 Oct decisions:** only known, active sites are accepted (missing / unknown / inactive refused); only the 16 FloLabs www origins may embed; Form 1-3 links expire after 21 days. Forms app on `127.0.0.1:3001`, Twenty stays on 3000; `TWENTY_BASE_URL=http://127.0.0.1:3000` allowed |
 | Open | Data retention policy; production hosting choice (recommended: Twenty's droplet, one instance, behind Cloudflare) |
 
 Implementation choices recorded in the spec for confirmation:
@@ -228,7 +231,8 @@ Implementation choices recorded in the spec for confirmation:
 **Limitations:**
 - **One app instance:** rate limits and the per-link queue are in memory. A shared store such as Redis is the upgrade path.
 - **CSP and inline scripts:** the CSP allows inline scripts (Next.js bootstrap). Per-request nonces would remove this.
-- **Links:** Form 1-3 links never expire (decided; revocable via secret rotation). HR asks the tech team for them.
+- **Links:** Form 1-3 links expire 21 days after they are created and work once; rotating the secret revokes all unused ones. HR asks the tech team for them.
+- **Websites:** only the 16 listed www origins may embed the forms; a bare (non-www) domain or a new website needs a code change and a release (project lead's approval).
 - **Newsletter:** single opt-in.
 
 **Future work, in a sensible order:**

@@ -78,16 +78,27 @@ describe('POST /api/inquiries (Contact Us)', () => {
     expect((await res.json()).error.fields).toEqual({ message: 'Use 5000 characters or fewer.' });
   });
 
-  it.each([
-    ['an unknown website', 'nope', { siteId: undefined, siteStatus: 'UNKNOWN', siteKeyReceived: 'nope' }],
-    ['an inactive Site', 'flomad', { siteId: SITES[2]!.id, siteStatus: 'INACTIVE', siteKeyReceived: 'flomad' }],
-    ['no site key', undefined, { siteId: undefined, siteStatus: 'MISSING', siteKeyReceived: undefined }],
-  ])('accepts %s and marks it (forms may run on future websites)', async (_case, site, expected) => {
+  it('links the active Site the form was sent from', async () => {
     const { handle, fake } = setup();
-    const res = await handle(post({ ...body, site }));
-    expect(res.status).toBe(201);
+    expect((await handle(post(body))).status).toBe(201);
     const { siteId, siteStatus, siteKeyReceived } = fake.calls.createInquiry[0]!;
-    expect({ siteId, siteStatus, siteKeyReceived }).toEqual(expected);
+    expect({ siteId, siteStatus, siteKeyReceived }).toEqual({ siteId: SITES[1]!.id, siteStatus: 'KNOWN', siteKeyReceived: 'robocollective' });
+  });
+
+  it.each([
+    ['an unknown website', 'nope', 'SITE_UNKNOWN'],
+    ['an inactive Site', 'flomad', 'SITE_INACTIVE'],
+    ['no site key', undefined, 'SITE_MISSING'],
+  ])('refuses %s with a generic 403 and writes nothing', async (_case, site, code) => {
+    const { handle, fake, lines } = setup();
+    const res = await handle(post({ ...body, site }));
+    expect(res.status).toBe(403);
+    expect((await res.json()).error).toEqual({
+      code: 'SITE_NOT_ALLOWED',
+      message: 'This form cannot be sent from this page. Please use the form on a FloLabs website.',
+    });
+    expect([fake.calls.createPerson, fake.calls.updatePerson, fake.calls.createInquiry]).toEqual([[], [], []]);
+    expect(lines.map((l) => JSON.parse(l))).toContainEqual(expect.objectContaining({ event: 'inquiry.site_refused', code }));
   });
 
   it('rejects a failed bot check before any Twenty call', async () => {

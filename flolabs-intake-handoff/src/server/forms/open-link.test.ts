@@ -38,6 +38,23 @@ describe('openFormLink (T10)', () => {
     expect(await openFormLink(undefined, 'CONTACTED', deps)).toEqual({ ok: false, reason: 'INVALID' });
   });
 
+  it('refuses a link older than 21 days as EXPIRED before any Twenty call, and opens one just inside', async () => {
+    const { deps, lines } = setup();
+    const issued = (days: number) => createLinkToken({ applicationId: APP, formType: 'CONTACTED' }, SECRET, new Date(Date.now() - days * 86_400_000));
+    let calls = 0;
+    const counted = { ...deps, twenty: { ...deps.twenty, findApplicationForLink: (id: string) => (calls++, deps.twenty.findApplicationForLink(id)) } };
+    expect(await openFormLink(issued(22), 'CONTACTED', counted)).toEqual({ ok: false, reason: 'EXPIRED' });
+    expect(calls).toBe(0);
+    expect(JSON.parse(lines.at(-1)!)).toMatchObject({ event: 'form_link.invalid', code: 'EXPIRED' });
+    expect((await openFormLink(issued(20.9), 'CONTACTED', deps)).ok).toBe(true);
+  });
+
+  it('a used link that has also expired is refused', async () => {
+    const { deps } = setup([{ id: '00000000-0000-4000-8000-0000000000f1', applicationId: APP, formType: 'CONTACTED' }]);
+    const old = createLinkToken({ applicationId: APP, formType: 'CONTACTED' }, SECRET, new Date(Date.now() - 30 * 86_400_000));
+    expect((await openFormLink(old, 'CONTACTED', deps)).ok).toBe(false);
+  });
+
   it('reports a deleted Application as NOT_FOUND', async () => {
     const { deps } = setup();
     expect(await openFormLink(token('CONTACTED', '00000000-0000-4000-8000-0000000000ff'), 'CONTACTED', deps)).toEqual({

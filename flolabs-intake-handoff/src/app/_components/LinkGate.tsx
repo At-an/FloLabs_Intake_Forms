@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { getEnv } from '@/server/env';
-import { LINK_FORM_TYPES, type LinkFormType } from '@/server/forms/link-tokens';
+import { LINK_FORM_TYPES, LINK_VALIDITY_DAYS, type LinkFormType } from '@/server/forms/link-tokens';
 import { openFormLink } from '@/server/forms/open-link';
 import { logger } from '@/server/logger';
 import { getTwentyClient } from '@/server/twenty';
@@ -14,6 +14,10 @@ const MESSAGES = {
   INVALID: {
     title: 'This link is not valid',
     text: `Please open the exact link from your email. If it still does not work, write to ${HR_EMAIL}.`,
+  },
+  EXPIRED: {
+    title: 'This link has expired',
+    text: `Links are valid for ${LINK_VALIDITY_DAYS} days. Please write to ${HR_EMAIL} and we'll send you a new one.`,
   },
   NOT_FOUND: {
     title: 'We could not find your application',

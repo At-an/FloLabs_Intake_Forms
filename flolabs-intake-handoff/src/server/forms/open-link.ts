@@ -5,11 +5,12 @@ import type { ApplicationForLink } from '../twenty/types';
 import { verifyLinkToken, type LinkFormType } from './link-tokens';
 
 // Opening a Form 1/2/3 link (T10): valid signature for this form -> Application exists ->
-// no Form Submission of this type yet (single use). Every failure maps to one friendly page.
+// not expired -> no Form Submission of this type yet (single use). Every failure maps to one
+// friendly page.
 
 export type OpenLinkResult =
   | { ok: true; application: ApplicationForLink }
-  | { ok: false; reason: 'INVALID' | 'NOT_FOUND' | 'USED' | 'UNAVAILABLE' };
+  | { ok: false; reason: 'INVALID' | 'EXPIRED' | 'NOT_FOUND' | 'USED' | 'UNAVAILABLE' };
 
 export type OpenLinkDeps = {
   twenty: Pick<TwentyClient, 'findApplicationForLink' | 'findFormSubmissionFor'>;
@@ -25,7 +26,7 @@ export async function openFormLink(token: unknown, formType: LinkFormType, { twe
   const verified = verifyLinkToken(token, secret, formType);
   if (!verified.ok) {
     logger.warn('form_link.invalid', { code: verified.code, form: formType });
-    return { ok: false, reason: 'INVALID' };
+    return { ok: false, reason: verified.code === 'EXPIRED' ? 'EXPIRED' : 'INVALID' };
   }
 
   try {

@@ -1,8 +1,17 @@
 import { describe, expect, it } from 'vitest';
-import { createLinkToken, formLinkUrl, verifyLinkToken } from './link-tokens';
+import { createHmac } from 'node:crypto';
+import { createLinkToken, formLinkUrl, LINK_VALIDITY_DAYS, verifyLinkToken } from './link-tokens';
 
 const SECRET = 'test-secret-'.padEnd(48, 'x');
 const APP = '7ca6ccf2-2aa0-478b-a76d-c655a6f2037f';
+const DAY_MS = 24 * 60 * 60 * 1000;
+const ISSUED = new Date('2026-10-01T09:00:00Z');
+
+/** A correctly signed token with any payload, to test values createLinkToken never produces. */
+const signed = (payload: object) => {
+  const data = Buffer.from(JSON.stringify(payload)).toString('base64url');
+  return `${data}.${createHmac('sha256', SECRET).update(data).digest('base64url')}`;
+};
 
 describe('link tokens (T10)', () => {
   it('round-trips the Application id and form type', () => {
@@ -10,9 +19,45 @@ describe('link tokens (T10)', () => {
     expect(verifyLinkToken(token, SECRET, 'CONTACTED')).toEqual({ ok: true, applicationId: APP, formType: 'CONTACTED' });
   });
 
-  it('never expires: a token issued years ago still verifies', () => {
-    const token = createLinkToken({ applicationId: APP, formType: 'MASTERCLASS' }, SECRET, new Date('2020-01-01'));
-    expect(verifyLinkToken(token, SECRET, 'MASTERCLASS').ok).toBe(true);
+  describe(`expiry (${LINK_VALIDITY_DAYS} days)`, () => {
+    const token = createLinkToken({ applicationId: APP, formType: 'MASTERCLASS' }, SECRET, ISSUED);
+    const after = (ms: number) => new Date(ISSUED.getTime() + ms);
+
+    it('is 21 days', () => expect(LINK_VALIDITY_DAYS).toBe(21));
+
+    it('is valid from issue up to exactly 21 days later', () => {
+      expect(verifyLinkToken(token, SECRET, 'MASTERCLASS', after(0)).ok).toBe(true);
+      expect(verifyLinkToken(token, SECRET, 'MASTERCLASS', after(21 * DAY_MS - 1000)).ok).toBe(true);
+      expect(verifyLinkToken(token, SECRET, 'MASTERCLASS', after(21 * DAY_MS)).ok).toBe(true);
+    });
+
+    it('is expired after 21 days', () => {
+      expect(verifyLinkToken(token, SECRET, 'MASTERCLASS', after(21 * DAY_MS + 1000))).toEqual({ ok: false, code: 'EXPIRED' });
+      expect(verifyLinkToken(token, SECRET, 'MASTERCLASS', after(400 * DAY_MS))).toEqual({ ok: false, code: 'EXPIRED' });
+    });
+
+    it('checks the signature and the form before the date', () => {
+      const late = after(30 * DAY_MS);
+      expect(verifyLinkToken(`${token.slice(0, -2)}AA`, SECRET, 'MASTERCLASS', late)).toEqual({ ok: false, code: 'BAD_SIGNATURE' });
+      expect(verifyLinkToken(token, SECRET, 'CONTACTED', late)).toEqual({ ok: false, code: 'WRONG_FORM' });
+    });
+
+    it.each([
+      ['missing', undefined],
+      ['a string', '1759309200'],
+      ['a fraction', 1759309200.5],
+      ['zero', 0],
+      ['negative', -1],
+      ['too large', Number.MAX_SAFE_INTEGER + 1],
+    ])('rejects an issued-at that is %s as malformed', (_label, i) => {
+      expect(verifyLinkToken(signed({ v: 1, a: APP, f: 'CONTACTED', i }), SECRET, 'CONTACTED', ISSUED)).toEqual({ ok: false, code: 'MALFORMED' });
+    });
+
+    it('allows a few minutes of clock difference but rejects an issued-at in the future as malformed', () => {
+      const at = (offsetSeconds: number) => signed({ v: 1, a: APP, f: 'CONTACTED', i: ISSUED.getTime() / 1000 + offsetSeconds });
+      expect(verifyLinkToken(at(60), SECRET, 'CONTACTED', ISSUED).ok).toBe(true);
+      expect(verifyLinkToken(at(3600), SECRET, 'CONTACTED', ISSUED)).toEqual({ ok: false, code: 'MALFORMED' });
+    });
   });
 
   it('rejects a token for another form', () => {

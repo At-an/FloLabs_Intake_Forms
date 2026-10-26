@@ -50,7 +50,7 @@ export type SiteStatus = 'KNOWN' | 'MISSING' | 'UNKNOWN' | 'INACTIVE';
 
 export type ApplicationInput = {
   personId: string;
-  /** Set for KNOWN and INACTIVE; left empty for MISSING and UNKNOWN. */
+  /** The active Site the form was sent from; other site statuses are refused (src/server/sites.ts). */
   siteId?: string;
   siteStatus: SiteStatus;
   siteKeyReceived?: string;
@@ -91,7 +91,7 @@ export type InquiryInput = {
   submittedAt: string;
   submissionKey: string;
   personId: string;
-  /** Set for KNOWN and INACTIVE; left empty for MISSING and UNKNOWN. */
+  /** The active Site the form was sent from; other site statuses are refused (src/server/sites.ts). */
   siteId?: string;
   siteStatus: SiteStatus;
   siteKeyReceived?: string;

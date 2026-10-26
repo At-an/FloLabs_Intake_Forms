@@ -7,7 +7,7 @@ One Next.js + TypeScript app, colocated with the CRM host, serves 13 forms + 1 w
 - Config-driven forms: one renderer each for Form 1 and Form 2; a track config holds question IDs, program-to-question mapping and the merge rules. Questions are versioned (`formVersion`).
 - One Zod schema per form, shared by client and server. Turnstile verified on the server on every public POST.
 - Server-only Twenty client exposing named operations only (findPersonByEmail, createApplication, ...). No generic proxy.
-- Stateless HMAC-signed link tokens {applicationId, formType}, no expiry. Single use is enforced by an existing Form Submission. Secret lives in env.
+- Stateless HMAC-signed link tokens {applicationId, formType, issued-at}, valid 21 days (project lead, 2026-10-26). Single use is enforced by an existing Form Submission. Secret lives in env.
 - Twenty generates every record `id` (the Submission ID). Idempotency via a client `submissionKey` stored on every record created.
 - Answers stored as RAW_JSON keyed by question ID, plus a generated markdown summary (RICH_TEXT) for HR/marketing; filterable fields typed.
 - Embeds (Contact Us, Newsletter): one `embed.js` loader + one `/embed/[form]` route; `frame-ancestors` allow-list of FloLabs domains; Site resolved server-side from an allow-listed site key.
@@ -69,7 +69,7 @@ Checkpoint A: tests and build pass; you review the schema map. (Schema decisions
 - Verify: manual run through all 3 Source branches; browser devtools show no Twenty key or URL.
 - Skill: frontend-ui-engineering.
 
-**T6b Embed loader + embed route.** S. **Done 2026-10-24**: `public/embed.js` turns `<div data-flolabs-form=…>` into an auto-resizing iframe; `/embed/[form]` for `application`, `contact-us`, `newsletter`. Framing: CSP `frame-ancestors https:` (any HTTPS website, so future FloLabs websites work without a code change; decided 2026-10-24); all other pages `frame-ancestors 'none'` + `X-Frame-Options: DENY`. Unknown/inactive/missing site keys are recorded and marked, not refused. Test page `/dev/embed-test` (development only).
+**T6b Embed loader + embed route.** S. **Done 2026-10-24**: `public/embed.js` turns `<div data-flolabs-form=…>` into an auto-resizing iframe; `/embed/[form]` for `application`, `contact-us`, `newsletter`. Framing: CSP `frame-ancestors` with only the 16 FloLabs `https://www.` origins from `src/shared/config/sites.ts` (project lead, 2026-10-26; replaced the 2026-10-24 any-HTTPS rule); all other pages `frame-ancestors 'none'` + `X-Frame-Options: DENY`. Unknown/inactive/missing site keys are recorded and marked, not refused. Test page `/dev/embed-test` (development only).
 - AC: `<script src=".../embed.js" data-form="contact-us" data-site="robocollective">` injects an auto-resizing iframe; CSP `frame-ancestors` lists only FloLabs domains; unknown site keys are rejected.
 - Verify: embedding works on an allow-listed test page and is refused on a non-listed origin.
 
@@ -105,8 +105,8 @@ Checkpoint C.
 
 ## Phase 3: Token-gated forms (revised POC)
 
-**T10 Signed link tokens.** S. **Done 2026-10-24**: `src/server/forms/link-tokens.ts` (HMAC-SHA256, no expiry, rotating `LINK_TOKEN_SECRET` revokes unused links), `open-link.ts` (signature -> form -> Application exists -> no Form Submission of that type), pages `/contacted`, `/before-meeting`, `/masterclass` with friendly messages (not valid / not found / already sent / temporarily unavailable), `npm run make-link -- <applicationId> <form>`. Live: tampered, wrong-form and missing tokens refused; a valid link reaches the single-use check, which waits for the Form Submission permission.
-- AC: CLI/script generates a link per Application + formType; no expiry; tampered or reused tokens get a friendly error page.
+**T10 Signed link tokens.** S. **Done 2026-10-24**: `src/server/forms/link-tokens.ts` (HMAC-SHA256, valid 21 days since 2026-10-26, rotating `LINK_TOKEN_SECRET` revokes unused links), `open-link.ts` (signature -> form -> Application exists -> no Form Submission of that type), pages `/contacted`, `/before-meeting`, `/masterclass` with friendly messages (not valid / not found / already sent / temporarily unavailable), `npm run make-link -- <applicationId> <form>`. Live: tampered, wrong-form and missing tokens refused; a valid link reaches the single-use check, which waits for the Form Submission permission.
+- AC: CLI/script generates a link per Application + formType; expires after 21 days; tampered, expired or reused tokens get a friendly error page.
 - Verify: unit tests for tamper/reuse.
 
 **T11 Form engine: config, merge and pre-fill logic.** M. **Done 2026-10-24** (`src/shared/forms/engine`): `buildForm` (intro, one section per track with track-wide + only the applicant's program questions, closing; cross-track merge), track statements, `prefillFor`, `validateFormConfig`, `answersSchema` (required, ranges, options, showIf), `renderSummary` (markdown for answersSummary), `typedFieldValues`. 18 table-driven tests incl. cross-track.
@@ -163,10 +163,10 @@ Pipeline automation (status changes, emails to applicants), Lifecycle/Lead Statu
 
 ## Resolved
 - Email: HR sends the tokenized links manually until SES is available.
-- Token lifetime: no expiry (changed from 21 days on 2026-10-24); single use.
+- Token lifetime: 21 days (no expiry from 2026-10-24, back to 21 days by the project lead on 2026-10-26); single use.
 - Checkpoint A (2026-10-24): source = single SELECT, 26 options; program values and live labels kept, Backend Developer Intern added; source labels cleaned with values kept; Inquiry, Form Submission, Reference approved; no Subscription object (consents stay on Application); Form Submission gets `answersSummary`; reference known duration = 0-6 months / 6-12 months / 1-2 years / 2-3 years; "roles" -> programs, "schools" -> tracks; POC = Application form first.
-- Embeds (iframe in a section of any HTTPS website, via loader script): Application, Contact Us, Newsletter. Hosted links: Application (public `/apply`), Form 1, 2, 3 (tokened). (Updated 2026-10-24.)
-- Site rule for every form: Known / Missing / Unknown / Inactive, key as received kept (2026-10-24).
+- Embeds (iframe in a section of one of the 16 FloLabs www websites, via loader script; any-HTTPS rule replaced on 2026-10-26): Application, Contact Us, Newsletter. Hosted links: Application (public `/apply`), Form 1, 2, 3 (tokened). (Updated 2026-10-24.)
+- Site rule for every form: only a known, active Site is accepted; missing / unknown / inactive are refused before any Twenty write (project lead, 2026-10-26; replaces the 2026-10-24 record-and-mark rule).
 - Newsletter: single opt-in for now; double opt-in via Amazon SES later (to be documented in T16). Wording approved (`newsletter-consent-v1`).
 - Sites: all 16 created in Twenty on 2026-10-24 (`scripts/t2-sites.mjs`); `flomad` inactive.
 - CV: PDF/DOCX in Cloudflare R2; Twenty attachment preferred, overlay viewer as fallback.

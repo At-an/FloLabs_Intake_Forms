@@ -51,7 +51,8 @@ const PERSON_FIELDS = `
   communicationConsentSite
 `;
 
-// File bytes may only go to Twenty itself or, once its storage is on R2 (T6c-0), to R2.
+// File bytes may only go to Twenty itself (its configured address, which may be plain HTTP on
+// this machine, see TWENTY_BASE_URL in src/server/env.ts) or, over HTTPS, to R2 (T6c-0).
 const R2_HOST = /\.r2\.cloudflarestorage\.com$/;
 const UPLOAD_TIMEOUT_MS = 30_000;
 
@@ -170,7 +171,8 @@ export function createTwentyClient({ baseUrl, apiKey, fetch: fetchImpl = fetch, 
       } catch {
         throw new TwentyError('twenty.uploadFile', 0, 'BAD_UPLOAD_URL');
       }
-      if (uploadUrl.protocol !== 'https:' || (uploadUrl.origin !== twentyOrigin && !R2_HOST.test(uploadUrl.hostname))) {
+      const toR2 = uploadUrl.protocol === 'https:' && R2_HOST.test(uploadUrl.hostname);
+      if (uploadUrl.origin !== twentyOrigin && !toR2) {
         throw new TwentyError('twenty.uploadFile', 0, 'UNEXPECTED_UPLOAD_HOST');
       }
 

@@ -724,3 +724,52 @@ button.stepButton:hover .stepLabel {
 .stepIntro {
   margin-bottom: 24px;
 }
+
+/* Searchable phone country code (CountryCodePicker). */
+.combo {
+  position: relative;
+}
+
+.comboList {
+  position: absolute;
+  z-index: 10;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  max-height: 260px;
+  margin: 0;
+  padding: 4px;
+  overflow-y: auto;
+  list-style: none;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+}
+
+.comboOption {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.comboOption[aria-selected='true'] {
+  font-weight: 600;
+}
+
+.comboActive {
+  background: var(--accent-soft);
+}
+
+.comboCode {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.comboEmpty {
+  padding: 8px 10px;
+  color: var(--muted);
+}

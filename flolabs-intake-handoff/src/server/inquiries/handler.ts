@@ -12,11 +12,11 @@ import {
   validationFailed,
   type GuardDeps,
 } from '../public-post';
-import { resolveSite, type SiteResolution } from '../sites';
+import { requireActiveSite } from '../sites';
 import type { TwentyClient } from '../twenty/client';
 
-// POST /api/inquiries (Contact Us, T9): Person (fill-empty) + one Inquiry, status New, with the
-// website recorded and marked by the shared site rule (src/server/sites.ts).
+// POST /api/inquiries (Contact Us, T9): Person (fill-empty) + one Inquiry, status New, linked to
+// the website it came from. Only a known, active website is accepted (src/server/sites.ts).
 
 const MAX_BODY_BYTES = 16 * 1024;
 
@@ -38,8 +38,7 @@ export async function submitInquiry(data: ContactUsData, siteKey: unknown, deps:
     return { inquiryId: existing.id, duplicate: true };
   }
 
-  const site: SiteResolution = await resolveSite(twenty, siteKey);
-  if (site.status !== 'KNOWN') logger.warn('inquiry.site_not_known', { code: `SITE_${site.status}` });
+  const site = await requireActiveSite(twenty, siteKey, logger, 'inquiry.site_refused');
 
   const { personId } = await upsertPersonByEmail(
     { emails: { primaryEmail: data.email, additionalEmails: [] }, name: { firstName: data.firstName, lastName: data.lastName } },
@@ -53,11 +52,11 @@ export async function submitInquiry(data: ContactUsData, siteKey: unknown, deps:
     submittedAt: now().toISOString(),
     submissionKey: data.submissionKey,
     personId,
-    ...(site.siteId && { siteId: site.siteId }),
+    siteId: site.siteId,
     siteStatus: site.status,
-    ...(site.keyReceived && { siteKeyReceived: site.keyReceived }),
+    siteKeyReceived: site.keyReceived,
   });
-  logger.info('inquiry.created', { recordId: id, personId, siteId: site.siteId, code: `SITE_${site.status}` });
+  logger.info('inquiry.created', { recordId: id, personId, siteId: site.siteId, code: 'SITE_KNOWN' });
   return { inquiryId: id, duplicate: false };
 }
 

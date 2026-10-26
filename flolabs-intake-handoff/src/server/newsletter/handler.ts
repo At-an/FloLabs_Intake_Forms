@@ -13,12 +13,13 @@ import {
   validationFailed,
   type GuardDeps,
 } from '../public-post';
-import { resolveSite } from '../sites';
+import { requireActiveSite } from '../sites';
 import type { TwentyClient } from '../twenty/client';
 
 // POST /api/newsletter (T8): find-or-create the Person by email and record marketing consent
 // in the Person consent fields (spec D17). Re-subscribing is a no-op; the reply is the same
 // whether or not the email was already known, so the endpoint cannot be used to look up emails.
+// Only a known, active website is accepted (src/server/sites.ts).
 // Double opt-in (confirmation email) waits for SES.
 
 const MAX_BODY_BYTES = 4 * 1024;
@@ -50,16 +51,16 @@ export function createNewsletterHandler(deps: NewsletterDeps) {
       if (blocked) return blocked;
 
       await once(email, async () => {
-        const site = await resolveSite(deps.twenty, body.site);
+        const site = await requireActiveSite(deps.twenty, body.site, deps.logger, 'newsletter.site_refused');
         const { personId, created } = await upsertPersonByEmail(
           {
             emails: { primaryEmail: email, additionalEmails: [] },
-            // The key as the website sent it, whatever its status (spec D17, site rule 2026-10-24).
+            // The website the visitor subscribed on (spec D17).
             consent: { at: now().toISOString(), version: NEWSLETTER_FORM.consentVersion, siteKey: site.keyReceived },
           },
           deps,
         );
-        deps.logger.info('newsletter.subscribed', { personId, siteId: site.siteId, code: `${created ? 'NEW_PERSON' : 'EXISTING_PERSON'}_SITE_${site.status}` });
+        deps.logger.info('newsletter.subscribed', { personId, siteId: site.siteId, code: created ? 'NEW_PERSON' : 'EXISTING_PERSON' });
       });
       return json(200, { subscribed: true });
     } catch (error) {

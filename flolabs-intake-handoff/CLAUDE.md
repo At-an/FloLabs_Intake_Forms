@@ -24,7 +24,7 @@ Plus a Contact Us form and a Newsletter widget for FloLabs websites.
 - Pinned: Next 16.4.3, React 19.3.1, Zod 4.6.7, TypeScript 6.0.3 (typescript-eslint does not support TS 7 yet), ESLint 9.39.5 (Next's lint plugins cap at 9), Vitest 5.0.5.
 - Server code lives in `src/server/` and imports `server-only`. Twenty access only through `src/server/twenty` (GraphQL with variables; REST filters break on `)` and `,`).
 - Forms address: dev/test `forms.157-230-82-204.sslip.io`; production `forms.flolabsinnovations.com`.
-- Env vars: `TWENTY_BASE_URL`, `TWENTY_API_KEY`, `TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY`, `LINK_TOKEN_SECRET`, `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`. All in `.env.local` (git-ignored). Locally, use Cloudflare's Turnstile test keys.
+- Env vars: `TWENTY_BASE_URL`, `TWENTY_API_KEY`, `TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY`, `LINK_TOKEN_SECRET`, `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`. All in `.env.local` (git-ignored). Locally, use Cloudflare's Turnstile test keys. `TWENTY_BASE_URL` must be `https`, or `http` on `127.0.0.1`/`localhost` only (production: `http://127.0.0.1:3000`, Twenty on the same droplet; the forms app runs on `127.0.0.1:3001`).
 
 ## 4. Non-negotiable rules
 1. **Never read, print, log or echo `.env*` files or secret values.** Never ask the user to paste a secret into chat.
@@ -51,17 +51,16 @@ Plus a Contact Us form and a Newsletter widget for FloLabs websites.
 **Embeds (Application, Contact Us, Newsletter; decided 2026-10-24).** One loader `embed.js` + one `/embed/[form]` route. A website places a `<div>` where the form should appear:
 `<div data-flolabs-form="application" data-site="robocollective"></div><script src="https://forms.<domain>/embed.js" async></script>` (`contact-us`, `newsletter` likewise)
 - The loader turns the div into an auto-resizing iframe (a section of the page, not a whole page).
-- CSP `frame-ancestors https:`: **any HTTPS website** may embed the forms, so current and future FloLabs websites work without a code change. All other pages (e.g. `/apply`) cannot be framed.
-- `data-site` is never refused: every submission records and marks it with the site rule below.
+- CSP `frame-ancestors` lists **only the 16 `https://www.` FloLabs origins** (project lead, 2026-10-26), from the one list in `src/shared/config/sites.ts`; development adds localhost. Never use generic `https:` or wildcards; bare (non-www) hosts need the project lead's approval. All other pages (e.g. `/apply`) cannot be framed.
 
-**Site rule (all forms, approved 2026-10-24, `src/server/sites.ts`).** The site key (`data-site` or `?site=`) is resolved server-side: active -> Site linked, `siteStatus` KNOWN; missing -> Site empty, MISSING; unknown (e.g. a future website not yet in Twenty) -> Site empty, UNKNOWN; inactive -> that Site linked, INACTIVE. The key as received is kept in `siteKeyReceived` (Application, Inquiry) or `communicationConsentSite` (Newsletter, on Person). The visitor never chooses the Site.
+**Site rule (all forms, project lead 2026-10-26, `src/server/sites.ts`).** The site key (`data-site` or `?site=`) is resolved server-side. Only a **known, active** Site is accepted (`siteStatus` KNOWN, Site linked, key kept in `siteKeyReceived` or, for the Newsletter, `communicationConsentSite`). Missing, unknown or inactive sites are **refused before any Twenty write** (no CV upload, Person, Application, Inquiry or consent) with the generic `SITE_NOT_ALLOWED` error; the reason is logged as `SITE_MISSING` / `SITE_UNKNOWN` / `SITE_INACTIVE`. The visitor never chooses the Site.
 
-**Application link.** `/apply?site=<site_id>`, public, no token, same site rule.
+**Application link.** `/apply?site=<site_id>`, public, no token, same site rule (a link without `?site=` is refused on submit).
 
-**Sites.** All 16 FloLabs Sites exist in Twenty (`scripts/t2-sites.mjs`, ids in `docs/twenty-schema.md`). `flomad` is inactive (expired certificate, site down).
+**Sites.** The canonical registry is `SITES` in `src/shared/config/sites.ts` (16 sites; `robocollective`, not `robocollective_ai`). All 16 exist in Twenty (`scripts/t2-sites.mjs` reads the same list; ids in `docs/twenty-schema.md`). `flomad` is inactive (expired certificate, site down), so its submissions are refused until it is switched on in Twenty.
 
-**Tokens.** Stateless HMAC-signed token `{applicationId, formType}`:
-- **No expiry** (unlimited validity), but single use (rejected if a Form Submission already exists for it).
+**Tokens.** Stateless HMAC-signed token `{applicationId, formType, issued-at}`:
+- **Valid 21 days** from issue (`LINK_VALIDITY_DAYS`, project lead 2026-10-26; do not change without their approval). Expired links get the EXPIRED page/`LINK_EXPIRED` error. Single use (rejected if a Form Submission already exists for it).
 - HR sends the links manually until SES is available.
 
 **Form 1 and 2 rendering.** Config-driven. One engine builds the sections from the applicant's positions:

@@ -148,7 +148,7 @@ export function createLinkFormHandler(formType: LinkFormType, deps: LinkFormDeps
       const link = verifyLinkToken(body.token, deps.secret, formType);
       if (!link.ok) {
         deps.logger.warn(`${event}.link_invalid`, { code: link.code });
-        const { status, body: error } = toPublicError(new AppError('LINK_INVALID'));
+        const { status, body: error } = toPublicError(new AppError(link.code === 'EXPIRED' ? 'LINK_EXPIRED' : 'LINK_INVALID'));
         return json(status, error);
       }
       if (!submissionKeySchema.safeParse(body.submissionKey).success) {

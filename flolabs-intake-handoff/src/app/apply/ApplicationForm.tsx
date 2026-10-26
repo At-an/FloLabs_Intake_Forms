@@ -9,6 +9,7 @@ import { CV_ACCEPT, cvProblem } from '@/shared/forms/cv';
 import { ErrorText, Field, newSubmissionKey, Required } from '../_components/form-ui';
 import styles from '../_components/form.module.css';
 import { Turnstile } from '../_components/Turnstile';
+import { CountryCodePicker } from './CountryCodePicker';
 
 type Country = { value: string; label: string; callingCode: string };
 
@@ -131,7 +132,9 @@ export function ApplicationForm({
   function set<K extends keyof Values>(key: K, value: Values[K], errorKey: string = key) {
     setValues((current) => {
       const next = { ...current, [key]: value };
-      // Default the phone country to the chosen country until the applicant picks one.
+      // Picking a phone country code fills in the same country (the applicant can still change it);
+      // picking a country first suggests its code until the applicant picks one.
+      if (key === 'phoneCountry' && value) next.country = value as string;
       if (key === 'country' && !current.phoneCountry) next.phoneCountry = value as string;
       return next;
     });
@@ -270,24 +273,15 @@ export function ApplicationForm({
 
         <div className={styles.row}>
           <Field id={id('phone.country')} label="Phone country code" required error={errorFor('phone.country')}>
-            <select
+            <CountryCodePicker
               id={id('phone.country')}
-              name="phoneCountry"
-              required
+              countries={countries}
               value={values.phoneCountry}
-              aria-invalid={Boolean(errorFor('phone.country'))}
-              aria-describedby={describedBy('phone.country')}
-              onChange={(e) => set('phoneCountry', e.target.value, 'phone.country')}
+              invalid={Boolean(errorFor('phone.country'))}
+              describedBy={describedBy('phone.country')}
+              onChange={(value) => set('phoneCountry', value, 'phone.country')}
               onBlur={() => touch('phone.country')}
-              className={styles.input}
-            >
-              <option value="">Choose…</option>
-              {countries.map((c) => (
-                <option key={c.value} value={c.value}>
-                  {c.label} ({c.callingCode})
-                </option>
-              ))}
-            </select>
+            />
           </Field>
           <Field
             id={id('phone.number')}
