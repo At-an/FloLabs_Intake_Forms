@@ -1,0 +1,495 @@
+import 'server-only';
+import { createHash } from 'node:crypto';
+import { chmodSync, mkdirSync } from 'node:fs';
+import { dirname, isAbsolute, relative, resolve, sep } from 'node:path';
+import { DatabaseSync } from 'node:sqlite';
+import { ImapFlow, type FetchMessageObject } from 'imapflow';
+import { simpleParser } from 'mailparser';
+import nodemailer from 'nodemailer';
+import { z } from 'zod';
+
+const emailAddress = z.string().email();
+const MAX_MESSAGE_BYTES = 1024 * 1024;
+const MAX_STORED_TEXT_CHARS = 64 * 1024;
+const messageIdPattern = /^<[^<>\s@]+@[^<>\s@]+>$/;
+
+export function resolveLocalEmailDatabasePath(configuredPath: string): string {
+  const directory = resolve('.local');
+  const databasePath = resolve(configuredPath);
+  const pathFromDirectory = relative(directory, databasePath);
+  if (!pathFromDirectory || pathFromDirectory === '..' || pathFromDirectory.startsWith(`..${sep}`) || isAbsolute(pathFromDirectory)) {
+    throw new Error('EMAIL_DATABASE_PATH_MUST_BE_UNDER_LOCAL');
+  }
+  return databasePath;
+}
+
+export type StoredEmail = {
+  key: string;
+  direction: 'inbound' | 'outbound';
+  threadId: string;
+  messageId: string | null;
+  inReplyTo: string | null;
+  references: string[];
+  from: string;
+  to: string[];
+  subject: string;
+  date: string;
+  text: string;
+  contactId: string | null;
+  applicationId: string | null;
+  providerId: string | null;
+  mailbox: string | null;
+  uidValidity: string | null;
+  uid: number | null;
+  contentHash: string | null;
+  state: 'pending' | 'unknown' | 'sent' | 'received';
+};
+
+export type EmailStore = {
+  reserveOutbound(email: StoredEmail): boolean;
+  updateOutbound(key: string, state: 'unknown' | 'sent', providerId?: string): void;
+  findByMessageId(messageIds: string[]): StoredEmail | null;
+  saveInbound(email: StoredEmail, uidValidity: string, lastUid: number): boolean;
+  getCursor(mailbox: string, uidValidity: string): number;
+  listMessages(): Array<Pick<StoredEmail, 'direction' | 'messageId' | 'threadId' | 'contactId' | 'applicationId' | 'state'>>;
+  close(): void;
+};
+
+function rowToEmail(row: Record<string, unknown>): StoredEmail {
+  return {
+    key: String(row.key),
+    direction: row.direction as StoredEmail['direction'],
+    threadId: String(row.thread_id),
+    messageId: row.message_id ? String(row.message_id) : null,
+    inReplyTo: row.in_reply_to ? String(row.in_reply_to) : null,
+    references: JSON.parse(String(row.references_json)) as string[],
+    from: String(row.from_address),
+    to: JSON.parse(String(row.to_json)) as string[],
+    subject: String(row.subject),
+    date: String(row.date),
+    text: String(row.text),
+    contactId: row.contact_id ? String(row.contact_id) : null,
+    applicationId: row.application_id ? String(row.application_id) : null,
+    providerId: row.provider_id ? String(row.provider_id) : null,
+    mailbox: row.mailbox ? String(row.mailbox) : null,
+    uidValidity: row.uid_validity ? String(row.uid_validity) : null,
+    uid: row.uid === null ? null : Number(row.uid),
+    contentHash: row.content_hash ? String(row.content_hash) : null,
+    state: row.state as StoredEmail['state'],
+  };
+}
+
+export function createSqliteEmailStore(databasePath: string): EmailStore {
+  mkdirSync(dirname(databasePath), { recursive: true, mode: 0o700 });
+  const db = new DatabaseSync(databasePath);
+  chmodSync(databasePath, 0o600);
+  db.exec(`
+    PRAGMA journal_mode = WAL;
+    PRAGMA synchronous = FULL;
+    CREATE TABLE IF NOT EXISTS email_messages (
+      key TEXT PRIMARY KEY,
+      direction TEXT NOT NULL,
+      thread_id TEXT NOT NULL,
+      message_id TEXT,
+      in_reply_to TEXT,
+      references_json TEXT NOT NULL,
+      from_address TEXT NOT NULL,
+      to_json TEXT NOT NULL,
+      subject TEXT NOT NULL,
+      date TEXT NOT NULL,
+      text TEXT NOT NULL,
+      contact_id TEXT,
+      application_id TEXT,
+      provider_id TEXT,
+      mailbox TEXT,
+      uid_validity TEXT,
+      uid INTEGER,
+      content_hash TEXT,
+      state TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS email_messages_message_id ON email_messages(message_id);
+    CREATE UNIQUE INDEX IF NOT EXISTS email_messages_imap_uid
+      ON email_messages(mailbox, uid_validity, uid) WHERE direction = 'inbound';
+    CREATE TABLE IF NOT EXISTS email_sync_cursor (
+      mailbox TEXT PRIMARY KEY,
+      uid_validity TEXT NOT NULL,
+      last_uid INTEGER NOT NULL
+    );
+  `);
+
+  const insert = db.prepare(`
+    INSERT OR IGNORE INTO email_messages (
+      key, direction, thread_id, message_id, in_reply_to, references_json,
+      from_address, to_json, subject, date, text, contact_id, application_id,
+      provider_id, mailbox, uid_validity, uid, content_hash, state
+    ) VALUES (
+      $key, $direction, $threadId, $messageId, $inReplyTo, $references,
+      $from, $to, $subject, $date, $text, $contactId, $applicationId,
+      $providerId, $mailbox, $uidValidity, $uid, $contentHash, $state
+    )
+  `);
+
+  function insertEmail(email: StoredEmail): boolean {
+    return insert.run({
+      $key: email.key,
+      $direction: email.direction,
+      $threadId: email.threadId,
+      $messageId: email.messageId,
+      $inReplyTo: email.inReplyTo,
+      $references: JSON.stringify(email.references),
+      $from: email.from,
+      $to: JSON.stringify(email.to),
+      $subject: email.subject,
+      $date: email.date,
+      $text: email.text,
+      $contactId: email.contactId,
+      $applicationId: email.applicationId,
+      $providerId: email.providerId,
+      $mailbox: email.mailbox,
+      $uidValidity: email.uidValidity,
+      $uid: email.uid,
+      $contentHash: email.contentHash,
+      $state: email.state,
+    }).changes === 1;
+  }
+
+  return {
+    reserveOutbound(email) {
+      return insertEmail(email);
+    },
+
+    updateOutbound(key, state, providerId) {
+      const result = db.prepare('UPDATE email_messages SET state = ?, provider_id = ? WHERE key = ? AND direction = ?')
+        .run(state, providerId ?? null, key, 'outbound');
+      if (result.changes !== 1) throw new Error('EMAIL_STORE_UPDATE_FAILED');
+    },
+
+    findByMessageId(messageIds) {
+      const lookup = db.prepare('SELECT * FROM email_messages WHERE message_id = ? ORDER BY rowid LIMIT 1');
+      for (const messageId of messageIds) {
+        const row = lookup.get(messageId) as Record<string, unknown> | undefined;
+        if (row) return rowToEmail(row);
+      }
+      return null;
+    },
+
+    saveInbound(email, uidValidity, lastUid) {
+      db.exec('BEGIN IMMEDIATE');
+      try {
+        const added = insertEmail(email);
+        db.prepare(`
+          INSERT INTO email_sync_cursor (mailbox, uid_validity, last_uid) VALUES (?, ?, ?)
+          ON CONFLICT(mailbox) DO UPDATE SET uid_validity = excluded.uid_validity, last_uid = MAX(last_uid, excluded.last_uid)
+        `).run(email.mailbox, uidValidity, lastUid);
+        db.exec('COMMIT');
+        return added;
+      } catch (error) {
+        db.exec('ROLLBACK');
+        throw error;
+      }
+    },
+
+    getCursor(mailbox, uidValidity) {
+      const row = db.prepare('SELECT uid_validity, last_uid FROM email_sync_cursor WHERE mailbox = ?')
+        .get(mailbox) as { uid_validity: string; last_uid: number } | undefined;
+      if (row?.uid_validity === uidValidity) return Number(row.last_uid);
+      db.prepare(`
+        INSERT INTO email_sync_cursor (mailbox, uid_validity, last_uid) VALUES (?, ?, 0)
+        ON CONFLICT(mailbox) DO UPDATE SET uid_validity = excluded.uid_validity, last_uid = 0
+      `).run(mailbox, uidValidity);
+      return 0;
+    },
+
+    listMessages() {
+      const rows = db.prepare(`
+        SELECT direction, message_id, thread_id, contact_id, application_id, state
+        FROM email_messages ORDER BY date, rowid
+      `).all() as Array<Record<string, unknown>>;
+      return rows.map((row) => ({
+        direction: row.direction as StoredEmail['direction'],
+        messageId: row.message_id ? String(row.message_id) : null,
+        threadId: String(row.thread_id),
+        contactId: row.contact_id ? String(row.contact_id) : null,
+        applicationId: row.application_id ? String(row.application_id) : null,
+        state: row.state as StoredEmail['state'],
+      }));
+    },
+
+    close() {
+      db.close();
+    },
+  };
+}
+
+export class EmailSendError extends Error {
+  constructor(readonly code: 'INVALID_MESSAGE' | 'RECIPIENT_NOT_APPROVED' | 'DUPLICATE' | 'IDEMPOTENCY_CONFLICT' | 'STORE_FAILED' | 'SMTP_FAILED' | 'DELIVERY_UNKNOWN') {
+    super(`Email send failed: ${code}`);
+    this.name = 'EmailSendError';
+  }
+}
+
+export type SmtpSettings = {
+  host: string;
+  port: 465;
+  username: string;
+  password: string;
+  allowedRecipients: string[];
+};
+
+type SmtpMessage = {
+  from: string;
+  to: string;
+  subject: string;
+  text: string;
+  messageId: string;
+  inReplyTo?: string;
+  references?: string[];
+};
+type SmtpResponse = { messageId?: string; accepted?: Array<string | { address: string }> };
+
+export async function sendEmail(
+  settings: SmtpSettings,
+  store: EmailStore,
+  input: {
+    key: string;
+    to: string;
+    subject: string;
+    text: string;
+    contactId?: string;
+    applicationId?: string;
+    replyToMessageId?: string;
+  },
+  deliver: (message: SmtpMessage) => Promise<SmtpResponse> = async (message) => {
+    const transport = nodemailer.createTransport({
+      host: settings.host,
+      port: settings.port,
+      secure: true,
+      auth: { user: settings.username, pass: settings.password },
+      logger: false,
+      debug: false,
+      connectionTimeout: 10_000,
+      greetingTimeout: 10_000,
+      socketTimeout: 20_000,
+      tls: { minVersion: 'TLSv1.2' },
+    });
+    try {
+      return await transport.sendMail(message);
+    } finally {
+      transport.close();
+    }
+  },
+): Promise<{ messageId: string }> {
+  const recipient = input.to.trim().toLowerCase();
+  if (
+    !emailAddress.safeParse(recipient).success ||
+    !input.key.trim() ||
+    input.key.length > 256 ||
+    /[\u0000-\u001f\u007f]/.test(input.key) ||
+    !input.subject.trim() ||
+    /[\r\n]/.test(input.subject) ||
+    !input.text.trim() ||
+    input.subject.length > 998 ||
+    input.text.length > MAX_STORED_TEXT_CHARS
+  ) {
+    throw new EmailSendError('INVALID_MESSAGE');
+  }
+  if (!settings.allowedRecipients.some((allowed) => allowed.trim().toLowerCase() === recipient)) {
+    throw new EmailSendError('RECIPIENT_NOT_APPROVED');
+  }
+  const parent = input.replyToMessageId ? store.findByMessageId([input.replyToMessageId]) : null;
+  if (input.replyToMessageId && !parent) throw new EmailSendError('INVALID_MESSAGE');
+  const references = parent
+    ? [...new Set([...parent.references, ...(parent.messageId ? [parent.messageId] : [])])]
+    : [];
+  const contentHash = createHash('sha256')
+    .update(`${recipient}\n${input.subject}\n${input.text}\n${parent?.messageId ?? ''}\n${input.contactId ?? ''}\n${input.applicationId ?? ''}`)
+    .digest('hex');
+  const messageId = `<${createHash('sha256').update(input.key).digest('hex')}@flolabsinnovations.com>`;
+  const email: StoredEmail = {
+    key: `outbound:${input.key}`,
+    direction: 'outbound',
+    threadId: parent?.threadId ?? messageId,
+    messageId,
+    inReplyTo: parent?.messageId ?? null,
+    references,
+    from: settings.username,
+    to: [recipient],
+    subject: input.subject,
+    date: new Date().toISOString(),
+    text: input.text,
+    contactId: parent ? parent.contactId : input.contactId ?? null,
+    applicationId: parent ? parent.applicationId : input.applicationId ?? null,
+    providerId: null,
+    mailbox: null,
+    uidValidity: null,
+    uid: null,
+    contentHash,
+    state: 'pending',
+  };
+  let reserved: boolean;
+  try {
+    reserved = store.reserveOutbound(email);
+  } catch {
+    throw new EmailSendError('STORE_FAILED');
+  }
+  if (!reserved) {
+    const existing = store.findByMessageId([messageId]);
+    if (existing?.contentHash !== contentHash) throw new EmailSendError('IDEMPOTENCY_CONFLICT');
+    throw new EmailSendError('DUPLICATE');
+  }
+
+  try {
+    const response = await deliver({
+      from: settings.username,
+      to: recipient,
+      subject: input.subject,
+      text: input.text,
+      messageId,
+      ...(parent?.messageId ? { inReplyTo: parent.messageId } : {}),
+      ...(references.length ? { references } : {}),
+    });
+    const accepted = response.accepted?.some((address) =>
+      (typeof address === 'string' ? address : address.address).trim().toLowerCase() === recipient,
+    );
+    if (!accepted) throw new EmailSendError('SMTP_FAILED');
+    const providerId = response.messageId && /^[\x21-\x7e]{1,998}$/.test(response.messageId) ? response.messageId : undefined;
+    try {
+      store.updateOutbound(email.key, 'sent', providerId);
+    } catch {
+      throw new EmailSendError('DELIVERY_UNKNOWN');
+    }
+    return { messageId };
+  } catch (error) {
+    try {
+      store.updateOutbound(email.key, 'unknown');
+    } catch {
+      throw error instanceof EmailSendError ? error : new EmailSendError('DELIVERY_UNKNOWN');
+    }
+    if (error instanceof EmailSendError) throw error;
+    throw new EmailSendError('SMTP_FAILED');
+  }
+}
+
+export class EmailSyncError extends Error {
+  constructor(readonly code: 'IMAP_FAILED' | 'MESSAGE_TOO_LARGE' | 'INVALID_MESSAGE') {
+    super(`Email synchronization failed: ${code}`);
+    this.name = 'EmailSyncError';
+  }
+}
+
+export type ParsedInbound = Omit<StoredEmail, 'key' | 'direction' | 'threadId' | 'contactId' | 'applicationId' | 'providerId' | 'mailbox' | 'uidValidity' | 'uid' | 'contentHash' | 'state'>;
+
+export async function parseInboundMessage(source: Buffer | string, internalDate: Date): Promise<ParsedInbound> {
+  if (Buffer.byteLength(source) > MAX_MESSAGE_BYTES) throw new EmailSyncError('MESSAGE_TOO_LARGE');
+  try {
+    const parsed = await simpleParser(source, { skipHtmlToText: true, maxHtmlLengthToParse: 0 });
+    const from = parsed.from?.value[0]?.address?.trim().toLowerCase();
+    if (!from || !emailAddress.safeParse(from).success) throw new EmailSyncError('INVALID_MESSAGE');
+    const to = parsed.to ? (Array.isArray(parsed.to) ? parsed.to : [parsed.to]).flatMap((item) => item.value.map((entry) => entry.address?.trim().toLowerCase() ?? '').filter(Boolean)) : [];
+    const referenceHeader = parsed.references ?? [];
+    const references = (Array.isArray(referenceHeader) ? referenceHeader : [referenceHeader])
+      .flatMap((line) => line.match(/<[^<>\s]+@[^<>\s]+>/g) ?? []);
+    const parsedMessageId = parsed.messageId?.trim();
+    const messageId = parsedMessageId && messageIdPattern.test(parsedMessageId) ? parsedMessageId : null;
+    const inReplyTo = parsed.inReplyTo?.match(/<[^<>\s]+@[^<>\s]+>/)?.[0] ?? null;
+    return {
+      messageId,
+      inReplyTo,
+      references,
+      from,
+      to,
+      subject: (parsed.subject ?? '').slice(0, 998),
+      date: (parsed.date ?? internalDate).toISOString(),
+      text: (parsed.text ?? '').slice(0, MAX_STORED_TEXT_CHARS),
+    };
+  } catch (error) {
+    if (error instanceof EmailSyncError) throw error;
+    throw new EmailSyncError('INVALID_MESSAGE');
+  }
+}
+
+export type EmailImapClient = {
+  connect(): Promise<void>;
+  getMailboxLock(path: string): Promise<{ release(): void }>;
+  search(criteria: { uid: string }, options: { uid: true }): Promise<number[] | false | undefined>;
+  fetch(
+    range: number[],
+    query: { uid: true; source: { maxLength: number }; size: true; internalDate: true },
+    options: { uid: true },
+  ): AsyncIterable<Pick<FetchMessageObject, 'uid' | 'size' | 'source' | 'internalDate'>>;
+  logout(): Promise<void>;
+  mailbox: false | { uidValidity: number | bigint };
+};
+
+export async function synchronizeInbox(
+  settings: { host: string; port: 993; username: string; password: string },
+  store: EmailStore,
+  createClient: (settings: { host: string; port: 993; username: string; password: string }) => EmailImapClient = (config) =>
+    new ImapFlow({
+      host: config.host,
+      port: config.port,
+      secure: true,
+      auth: { user: config.username, pass: config.password },
+      logger: false,
+      socketTimeout: 20_000,
+      greetingTimeout: 10_000,
+    }),
+): Promise<{ imported: number; duplicates: number }> {
+  const client = createClient(settings);
+  let operationFailed = false;
+  try {
+    await client.connect();
+    const lock = await client.getMailboxLock('INBOX');
+    try {
+      const mailbox = client.mailbox;
+      if (!mailbox) throw new EmailSyncError('IMAP_FAILED');
+      const uidValidity = String(mailbox.uidValidity);
+      const mailboxAddress = settings.username.trim().toLowerCase();
+      const lastUid = store.getCursor(mailboxAddress, uidValidity);
+      const uids = await client.search({ uid: `${lastUid + 1}:*` }, { uid: true });
+      if (!uids || !uids.length) return { imported: 0, duplicates: 0 };
+      let imported = 0;
+      let duplicates = 0;
+      for await (const message of client.fetch(uids, { uid: true, source: { maxLength: MAX_MESSAGE_BYTES + 1 }, size: true, internalDate: true }, { uid: true })) {
+        if (message.size && message.size > MAX_MESSAGE_BYTES) throw new EmailSyncError('MESSAGE_TOO_LARGE');
+        if (!message.source) throw new EmailSyncError('INVALID_MESSAGE');
+        const parsed = await parseInboundMessage(message.source, message.internalDate instanceof Date ? message.internalDate : new Date());
+        const references = parsed.inReplyTo ? [parsed.inReplyTo, ...parsed.references] : parsed.references;
+        const parent = store.findByMessageId(references);
+        const messageUidKey = `${mailboxAddress}:${uidValidity}:${message.uid}`;
+        const id = parsed.messageId?.trim();
+        const threadId = parent?.threadId ?? id ?? `imap:${createHash('sha256').update(messageUidKey).digest('hex')}`;
+        const record: StoredEmail = {
+          ...parsed,
+          key: `inbound:${createHash('sha256').update(messageUidKey).digest('hex')}`,
+          direction: 'inbound',
+          threadId,
+          contactId: parent?.contactId ?? null,
+          applicationId: parent?.applicationId ?? null,
+          providerId: null,
+          mailbox: mailboxAddress,
+          uidValidity,
+          uid: message.uid,
+          contentHash: null,
+          state: 'received',
+        };
+        const added = store.saveInbound(record, uidValidity, message.uid);
+        if (added) imported += 1;
+        else duplicates += 1;
+      }
+      return { imported, duplicates };
+    } finally {
+      lock.release();
+    }
+  } catch (error) {
+    operationFailed = true;
+    if (error instanceof EmailSyncError) throw error;
+    throw new EmailSyncError('IMAP_FAILED');
+  } finally {
+    try {
+      await client.logout();
+    } catch {
+      if (!operationFailed) throw new EmailSyncError('IMAP_FAILED');
+    }
+  }
+}

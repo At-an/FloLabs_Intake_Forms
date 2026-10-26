@@ -43,6 +43,14 @@ describe('Twenty client', () => {
     await expect(found.client.findPersonByEmail(EMAIL)).resolves.toEqual(person);
   });
 
+  it('finds a Person by id using a GraphQL variable', async () => {
+    const person = { id: ID, name: { firstName: 'Jane', lastName: 'Doe' }, emails: { primaryEmail: EMAIL } };
+    const { client, calls } = mockFetch(() => json({ data: { people: { edges: [{ node: person }] } } }));
+    await expect(client.findPersonById(ID)).resolves.toEqual(person);
+    expect(calls[0]!.body.variables).toEqual({ id: ID });
+    expect(calls[0]!.body.query).not.toContain(ID);
+  });
+
   it('finds a Site by its site key', async () => {
     const site = { id: ID, siteId: 'flolabs_international', active: true };
     const { client, calls } = mockFetch(() => json({ data: { sites: { edges: [{ node: site }] } } }));
@@ -113,6 +121,7 @@ describe('Twenty client', () => {
       'findFormSubmissionFor',
       'findInquiryBySubmissionKey',
       'findPersonByEmail',
+      'findPersonById',
       'findReferenceFor',
       'findSiteByKey',
       'updatePerson',

@@ -1,0 +1,334 @@
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import {
+  createSqliteEmailStore,
+  EmailSendError,
+  EmailSyncError,
+  parseInboundMessage,
+  resolveLocalEmailDatabasePath,
+  sendEmail,
+  synchronizeInbox,
+  type EmailStore,
+  type StoredEmail,
+} from './mailbox';
+
+const directories: string[] = [];
+const stores: EmailStore[] = [];
+const createStore = () => {
+  const directory = mkdtempSync(join(tmpdir(), 'flolabs-email-test-'));
+  directories.push(directory);
+  const store = createSqliteEmailStore(join(directory, 'mail.sqlite'));
+  stores.push(store);
+  return store;
+};
+const smtp = {
+  host: 'mail.example.test',
+  port: 465 as const,
+  username: 'crm.test1@example.test',
+  password: 'never-log-this-secret',
+  allowedRecipients: ['approved@example.test'],
+};
+
+afterEach(() => {
+  for (const store of stores.splice(0)) store.close();
+  for (const directory of directories.splice(0)) rmSync(directory, { recursive: true, force: true });
+});
+
+describe('SMTP sending', () => {
+  it('restricts CLI mailbox storage to the local ignored data directory', () => {
+    expect(resolveLocalEmailDatabasePath('.local/email.sqlite')).toContain('.local');
+    expect(() => resolveLocalEmailDatabasePath('../outside.sqlite')).toThrow('EMAIL_DATABASE_PATH_MUST_BE_UNDER_LOCAL');
+  });
+
+  it('sends only to approved recipients over the configured transport and stores the message', async () => {
+    const store = createStore();
+    const deliver = vi.fn(async (message: { messageId: string }) => ({ messageId: message.messageId, accepted: ['approved@example.test'] }));
+    const result = await sendEmail(smtp, store, {
+      key: 'test-hr-1',
+      to: 'approved@example.test',
+      subject: 'Test',
+      text: 'Safe test content',
+      contactId: 'person-1',
+      applicationId: 'application-1',
+    }, deliver);
+    expect(result.messageId).toMatch(/^<.*@flolabsinnovations\.com>$/);
+    expect(deliver).toHaveBeenCalledOnce();
+    expect(deliver.mock.calls[0]?.[0]).toMatchObject({ to: 'approved@example.test', subject: 'Test' });
+    expect(store.findByMessageId([result.messageId])).toMatchObject({
+      state: 'sent',
+      contactId: 'person-1',
+      applicationId: 'application-1',
+    });
+  });
+
+  it('refuses an unapproved address and malformed messages before SMTP', async () => {
+    const deliver = vi.fn();
+    await expect(sendEmail(smtp, createStore(), {
+      key: 'not-approved',
+      to: 'person@example.test',
+      subject: 'Test',
+      text: 'Test',
+    }, deliver)).rejects.toMatchObject({ code: 'RECIPIENT_NOT_APPROVED' });
+    await expect(sendEmail(smtp, createStore(), {
+      key: 'invalid',
+      to: 'not-an-email',
+      subject: '',
+      text: '',
+    }, deliver)).rejects.toMatchObject({ code: 'INVALID_MESSAGE' });
+    expect(deliver).not.toHaveBeenCalled();
+  });
+
+  it('does not resubmit duplicate idempotency keys', async () => {
+    const store = createStore();
+    const deliver = vi.fn(async (message: { messageId: string }) => ({ messageId: message.messageId, accepted: ['approved@example.test'] }));
+    const message = { key: 'once', to: 'approved@example.test', subject: 'Test', text: 'Body' };
+    await sendEmail(smtp, store, message, deliver);
+    await expect(sendEmail(smtp, store, message, deliver)).rejects.toMatchObject({ code: 'DUPLICATE' });
+    await expect(sendEmail(smtp, store, { ...message, text: 'Different body' }, deliver))
+      .rejects.toMatchObject({ code: 'IDEMPOTENCY_CONFLICT' });
+    expect(deliver).toHaveBeenCalledOnce();
+  });
+
+  it('preserves Message-ID reply references and CRM association for outgoing replies', async () => {
+    const store = createStore();
+    const deliver = vi.fn(async (message: { messageId: string; inReplyTo?: string; references?: string[] }) => ({
+      messageId: message.messageId,
+      accepted: ['approved@example.test'],
+    }));
+    const original = await sendEmail(smtp, store, {
+      key: 'original',
+      to: 'approved@example.test',
+      subject: 'Original',
+      text: 'Original message',
+      contactId: 'person-1',
+      applicationId: 'application-1',
+    }, deliver);
+    const reply = await sendEmail(smtp, store, {
+      key: 'reply',
+      to: 'approved@example.test',
+      subject: 'Re: Original',
+      text: 'Reply body',
+      replyToMessageId: original.messageId,
+    }, deliver);
+    expect(deliver.mock.calls[1]?.[0]).toMatchObject({
+      inReplyTo: original.messageId,
+      references: [original.messageId],
+    });
+    expect(store.findByMessageId([reply.messageId])).toMatchObject({
+      threadId: original.messageId,
+      inReplyTo: original.messageId,
+      contactId: 'person-1',
+      applicationId: 'application-1',
+    });
+  });
+
+  it('records ambiguous SMTP failures and redacts credentials and provider error text', async () => {
+    const store = createStore();
+    const failure = await sendEmail(smtp, store, {
+      key: 'failed',
+      to: 'approved@example.test',
+      subject: 'Test',
+      text: 'Body',
+    }, async () => {
+      throw new Error(`auth failed: ${smtp.password}`);
+    }).catch((error: unknown) => error);
+    expect(failure).toBeInstanceOf(EmailSendError);
+    expect(String(failure)).not.toContain(smtp.password);
+    try {
+      await sendEmail(smtp, store, {
+        key: 'failed',
+        to: 'approved@example.test',
+        subject: 'Test',
+        text: 'Body',
+      }, async () => ({ messageId: 'unused', accepted: ['approved@example.test'] }));
+      expect.unreachable();
+    } catch (error) {
+      expect(String(error)).not.toContain(smtp.password);
+      expect((error as EmailSendError).code).toBe('DUPLICATE');
+    }
+
+    const timedOut = await sendEmail(smtp, store, {
+      key: 'timeout',
+      to: 'approved@example.test',
+      subject: 'Test',
+      text: 'Body',
+    }, async () => {
+      throw new Error(`socket timeout ${smtp.password}`);
+    }).catch((error: unknown) => error);
+    expect(timedOut).toMatchObject({ code: 'SMTP_FAILED' });
+    expect(String(timedOut)).not.toContain(smtp.password);
+    expect(store.listMessages()).toContainEqual(expect.objectContaining({ state: 'unknown' }));
+  });
+});
+
+describe('IMAP parsing and synchronization', () => {
+  const reply = [
+    'From: applicant@example.test',
+    'To: crm.test1@example.test',
+    'Subject: Re: FloLabs application',
+    'Message-ID: <reply-1@example.test>',
+    'In-Reply-To: <original@flolabsinnovations.com>',
+    'References: <original@flolabsinnovations.com>',
+    'Date: Tue, 12 May 2026 10:00:00 +0000',
+    'Content-Type: text/plain; charset=utf-8',
+    '',
+    'Thanks, I completed the form.',
+  ].join('\r\n');
+
+  it('extracts reply headers and plain text while ignoring HTML', async () => {
+    const multipartReply = reply.replace(
+      'Content-Type: text/plain; charset=utf-8\r\n\r\nThanks, I completed the form.',
+      [
+        'MIME-Version: 1.0',
+        'Content-Type: multipart/alternative; boundary="test-boundary"',
+        '',
+        '--test-boundary',
+        'Content-Type: text/plain; charset=utf-8',
+        '',
+        'Thanks, I completed the form.',
+        '--test-boundary',
+        'Content-Type: text/html; charset=utf-8',
+        '',
+        '<p>HTML-only private markup</p>',
+        '--test-boundary--',
+      ].join('\r\n'),
+    );
+    const parsed = await parseInboundMessage(Buffer.from(multipartReply), new Date('2026-05-12T10:00:00Z'));
+    expect(parsed).toMatchObject({
+      messageId: '<reply-1@example.test>',
+      inReplyTo: '<original@flolabsinnovations.com>',
+      references: ['<original@flolabsinnovations.com>'],
+      from: 'applicant@example.test',
+      text: 'Thanks, I completed the form.',
+    });
+    expect(JSON.stringify(parsed)).not.toContain('HTML-only private markup');
+  });
+
+  it('associates replies with the known original message and de-duplicates repeated syncs', async () => {
+    const store = createStore();
+    const outbound: StoredEmail = {
+      key: 'outbound:original',
+      direction: 'outbound',
+      threadId: '<original@flolabsinnovations.com>',
+      messageId: '<original@flolabsinnovations.com>',
+      inReplyTo: null,
+      references: [],
+      from: smtp.username,
+      to: ['applicant@example.test'],
+      subject: 'Application follow-up',
+      date: new Date().toISOString(),
+      text: 'Original',
+      contactId: 'person-123',
+      applicationId: 'application-123',
+      providerId: null,
+      mailbox: null,
+      uidValidity: null,
+      uid: null,
+      contentHash: 'hash',
+      state: 'sent',
+    };
+    store.reserveOutbound(outbound);
+    const fakeClient = {
+      mailbox: { uidValidity: 123n },
+      connect: vi.fn(async () => undefined),
+      getMailboxLock: vi.fn(async () => ({ release: vi.fn() })),
+      search: vi.fn(async () => [8]),
+      async *fetch() {
+        yield {
+          uid: 8,
+          size: Buffer.byteLength(reply),
+          source: Buffer.from(reply),
+          internalDate: new Date('2026-05-12T10:00:00Z'),
+        };
+      },
+      logout: vi.fn(async () => undefined),
+    };
+    const factory = () => fakeClient;
+    expect(await synchronizeInbox({
+      host: 'mail.example.test',
+      port: 993,
+      username: smtp.username,
+      password: smtp.password,
+    }, store, factory)).toEqual({ imported: 1, duplicates: 0 });
+    expect(store.findByMessageId(['<reply-1@example.test>'])).toMatchObject({
+      threadId: '<original@flolabsinnovations.com>',
+      contactId: 'person-123',
+      applicationId: 'application-123',
+    });
+    expect(store.listMessages().filter((message) => message.threadId === '<original@flolabsinnovations.com>')).toHaveLength(2);
+    expect(await synchronizeInbox({
+      host: 'mail.example.test',
+      port: 993,
+      username: smtp.username,
+      password: smtp.password,
+    }, store, factory)).toEqual({ imported: 0, duplicates: 1 });
+    expect(fakeClient.logout).toHaveBeenCalledTimes(2);
+  });
+
+  it('keeps unmatched inbound mail unassociated', async () => {
+    const store = createStore();
+    store.reserveOutbound({
+      key: 'outbound:unmatched',
+      direction: 'outbound',
+      threadId: '<original@flolabsinnovations.com>',
+      messageId: '<original@flolabsinnovations.com>',
+      inReplyTo: null,
+      references: [],
+      from: smtp.username,
+      to: ['applicant@example.test'],
+      subject: 'Re: FloLabs application',
+      date: new Date().toISOString(),
+      text: 'Original',
+      contactId: 'person-should-not-match',
+      applicationId: 'application-should-not-match',
+      providerId: null,
+      mailbox: null,
+      uidValidity: null,
+      uid: null,
+      contentHash: 'hash',
+      state: 'sent',
+    });
+    const unmatchedReply = reply
+      .replace('In-Reply-To: <original@flolabsinnovations.com>\r\n', '')
+      .replace('References: <original@flolabsinnovations.com>\r\n', '');
+    const fakeClient = {
+      mailbox: { uidValidity: 1 },
+      connect: async () => undefined,
+      getMailboxLock: async () => ({ release: () => undefined }),
+      search: async () => [1],
+      async *fetch() {
+        yield { uid: 1, size: Buffer.byteLength(unmatchedReply), source: Buffer.from(unmatchedReply), internalDate: new Date() };
+      },
+      logout: async () => undefined,
+    };
+    await synchronizeInbox({ host: 'mail.example.test', port: 993, username: smtp.username, password: smtp.password }, store, () => fakeClient);
+    expect(store.findByMessageId(['<reply-1@example.test>'])).toMatchObject({ contactId: null, applicationId: null });
+  });
+
+  it('rejects oversized and malformed messages with safe errors', async () => {
+    await expect(parseInboundMessage(Buffer.alloc(1024 * 1024 + 1), new Date()))
+      .rejects.toMatchObject({ code: 'MESSAGE_TOO_LARGE' });
+    await expect(parseInboundMessage('not a valid email', new Date()))
+      .rejects.toBeInstanceOf(EmailSyncError);
+  });
+
+  it('sanitizes IMAP authentication and connection failures', async () => {
+    const failure = await synchronizeInbox({
+      host: 'mail.example.test',
+      port: 993,
+      username: smtp.username,
+      password: smtp.password,
+    }, createStore(), () => ({
+      mailbox: false,
+      connect: async () => { throw new Error(`bad password ${smtp.password}`); },
+      getMailboxLock: async () => { throw new Error('unreachable'); },
+      search: async () => false,
+      async *fetch() {},
+      logout: async () => undefined,
+    })).catch((error: unknown) => error);
+    expect(failure).toMatchObject({ code: 'IMAP_FAILED' });
+    expect(String(failure)).not.toContain(smtp.password);
+  });
+});

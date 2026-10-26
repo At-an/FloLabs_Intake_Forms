@@ -2,7 +2,7 @@
 
 For the FloLabs HR team. It explains how applicants reach FloLabs through the forms, what arrives in Twenty, what every field means, and what HR does at each stage. No technical knowledge is needed; the few steps that need the tech team are marked **(tech team)**.
 
-Last updated: 24 October 2026.
+Last updated: 26 October 2026.
 
 ---
 
@@ -22,7 +22,7 @@ Besides the pipeline, every FloLabs website can show a **Contact Us** form and a
 
 **What the system does automatically:** checks every answer, blocks bots and spam, saves each submission in Twenty, links it to the right person, application and website, and writes a readable summary of the answers.
 
-**What HR still does by hand (for now):** send the Form 1-3 links, move applicants between pipeline stages (Lead Status), answer Contact Us messages, and decide on applicants. Automatic emails (Amazon SES) and automatic stage changes will come later.
+**What HR still does by hand (for now):** send the Form 1-3 links, move applicants between pipeline stages (Lead Status), answer Contact Us messages, and decide on applicants. Automatic production email and automatic stage changes remain deferred. A separate SMTP command exists only for an explicitly allowlisted test recipient; it is not the production HR workflow.
 
 ## 2. The forms at a glance
 
@@ -55,8 +55,8 @@ New Applications start with **Lifecycle Stage = Interested** and **Lead Status =
 
 ### Stage 2: contacting the applicant (Forms 1 and 2)
 
-1. **Get the two personal links (tech team).** Until links are created automatically, ask the tech team for the Form 1 and Form 2 links of the Application. They need the **Application's id**: open the Application in Twenty; the id is the last part of the address in the browser (for example `.../object/application/7ca6ccf2-2aa0-478b-a76d-c655a6f2037f`). Each link looks like `https://forms.flolabsinnovations.com/contacted?t=...`.
-2. **Email the links** from hr@flolabsinnovations.com (template in section 10).
+1. **Create an email draft (authorized tech team).** Use the Application id from Twenty and the command in the appendix. It looks up the applicant, checks both forms are not already submitted, and prints a draft with two personal links.
+2. **Review and send the draft manually** from hr@flolabsinnovations.com (template in section 10). The command does not send email.
 3. Set **Lead Status = Contacted** on the Application.
 
 About the links:
@@ -79,7 +79,7 @@ Set **Lead Status = Before Meeting** once Form 2 is in, if that is your conventi
 
 ### Stage 4: the masterclass (Form 3)
 
-Get the **Form 3 link (tech team)** and email it (template in section 10). Form 3 has three steps: Self-assessment and continued interest → References → Contacting your references.
+Create and review the **Form 3 email draft (authorized tech team)** using the command in the appendix, then send it manually (template in section 10). The command checks that Form 3 has not already been submitted and does not send email. Form 3 has three steps: Self-assessment and continued interest → References → Contacting your references.
 
 When it arrives:
 - The **Form Submission** "Form 3 (Masterclass) - First Last" shows whether they want to continue to the final interview, whether they can meet the commitment, and whether FloLabs may contact their references (with their explanation if not).
@@ -301,14 +301,16 @@ Adapt freely. Send from hr@flolabsinnovations.com; applicants confirmed they add
 
 ---
 
-### Appendix: creating a Form 1-3 link (tech team)
+### Appendix: creating an HR email draft (authorized tech team)
 
-On the server where the forms app runs (see the production runbook, step 7), with the Application id from Twenty:
+On the server where the forms app runs (see the production runbook, step 7), use the Application id from Twenty. The command checks the Application, applicant email, program data, and already-submitted forms before printing the draft. Links remain personal, single-use, and expire 21 days after creation.
 
 ```bash
 cd /opt/flolabs-forms/repo/flolabs-intake-handoff
 sudo -u flolabs-forms node --env-file=/opt/flolabs-forms/.env.production \
-  --conditions=react-server scripts/make-form-link.mts <applicationId> contacted https://forms.flolabsinnovations.com
+  --conditions=react-server scripts/make-hr-email-draft.mts <applicationId> contacted https://forms.flolabsinnovations.com
 ```
 
-Use `contacted` (Form 1), `before-meeting` (Form 2) or `masterclass` (Form 3). The command checks that the Application exists and prints the link to send.
+Use `contacted` for Forms 1 and 2 or `masterclass` for Form 3. Review the recipient, subject, programs, and links before sending. This command only creates a draft; it never sends email. Personal links expire 21 days after creation.
+
+The allowlist-gated test SMTP/IMAP procedure is documented in [email-local-testing.md](./email-local-testing.md). It must only be used with an approved test mailbox and test Application; do not use it to contact applicants.

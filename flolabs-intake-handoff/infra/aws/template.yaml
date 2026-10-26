@@ -1,0 +1,167 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Non-production SES feedback path for FloLabs; deploy only after policy and AWS approval.
+
+Parameters:
+  EnvironmentName:
+    Type: String
+    Default: dev
+    AllowedValues: [dev, staging]
+Resources:
+  SuppressionTable:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      TableName: !Sub flolabs-${EnvironmentName}-email-suppressions
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: pk
+          AttributeType: S
+        - AttributeName: sk
+          AttributeType: S
+      KeySchema:
+        - AttributeName: pk
+          KeyType: HASH
+        - AttributeName: sk
+          KeyType: RANGE
+      SSESpecification:
+        SSEEnabled: true
+        SSEType: KMS
+        KMSMasterKeyId: alias/aws/dynamodb
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      TimeToLiveSpecification:
+        AttributeName: expiresAt
+        Enabled: true
+
+  SesFeedbackTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub flolabs-${EnvironmentName}-ses-feedback
+
+  SesFeedbackDeadLetterQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub flolabs-${EnvironmentName}-ses-feedback-dlq
+      MessageRetentionPeriod: 1209600
+      SqsManagedSseEnabled: true
+
+  SesFeedbackLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/flolabs-${EnvironmentName}-ses-feedback
+      RetentionInDays: 30
+
+  SesFeedbackRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: FeedbackStoreAndLogs
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: [dynamodb:GetItem, dynamodb:PutItem, dynamodb:UpdateItem]
+                Resource: !GetAtt SuppressionTable.Arn
+              - Effect: Allow
+                Action: sqs:SendMessage
+                Resource: !GetAtt SesFeedbackDeadLetterQueue.Arn
+              - Effect: Allow
+                Action: [logs:CreateLogStream, logs:PutLogEvents]
+                Resource: !Sub ${SesFeedbackLogGroup.Arn}:*
+
+  SesFeedbackFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub flolabs-${EnvironmentName}-ses-feedback
+      Runtime: nodejs22.x
+      Handler: handler.handler
+      Role: !GetAtt SesFeedbackRole.Arn
+      CodeUri: ./dist/
+      Timeout: 30
+      MemorySize: 256
+      Environment:
+        Variables:
+          AWS_REGION: !Ref AWS::Region
+          SUPPRESSION_TABLE_NAME: !Ref SuppressionTable
+          EXPECTED_SNS_TOPIC_ARN: !Ref SesFeedbackTopic
+
+  SesFeedbackInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref SesFeedbackFunction
+      Action: lambda:InvokeFunction
+      Principal: sns.amazonaws.com
+      SourceArn: !Ref SesFeedbackTopic
+
+  SesFeedbackSubscription:
+    Type: AWS::SNS::Subscription
+    DependsOn: SesFeedbackInvokePermission
+    Properties:
+      TopicArn: !Ref SesFeedbackTopic
+      Protocol: lambda
+      Endpoint: !GetAtt SesFeedbackFunction.Arn
+
+  SesFeedbackTopicPolicy:
+    Type: AWS::SNS::TopicPolicy
+    Properties:
+      Topics: [!Ref SesFeedbackTopic]
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: AllowConfiguredSesIdentityToPublish
+            Effect: Allow
+            Principal:
+              Service: ses.amazonaws.com
+            Action: sns:Publish
+            Resource: !Ref SesFeedbackTopic
+            Condition:
+              StringEquals:
+                aws:SourceAccount: !Ref AWS::AccountId
+              ArnLike:
+                aws:SourceArn: !Sub arn:${AWS::Partition}:ses:${AWS::Region}:${AWS::AccountId}:configuration-set/${SesConfigurationSet}
+
+  SesConfigurationSet:
+    Type: AWS::SES::ConfigurationSet
+    Properties:
+      Name: !Sub flolabs-${EnvironmentName}-feedback
+
+  SesFeedbackEventDestination:
+    Type: AWS::SES::ConfigurationSetEventDestination
+    DependsOn: SesFeedbackTopicPolicy
+    Properties:
+      ConfigurationSetName: !Ref SesConfigurationSet
+      EventDestination:
+        Enabled: true
+        MatchingEventTypes: [bounce, complaint, delivery, reject]
+        SnsDestination:
+          TopicARN: !Ref SesFeedbackTopic
+
+  SesFeedbackFailureDestination:
+    Type: AWS::Lambda::EventInvokeConfig
+    Properties:
+      FunctionName: !Ref SesFeedbackFunction
+      Qualifier: '$LATEST'
+      MaximumRetryAttempts: 2
+      MaximumEventAgeInSeconds: 21600
+      DestinationConfig:
+        OnFailure:
+          Destination: !GetAtt SesFeedbackDeadLetterQueue.Arn
+
+Outputs:
+  SuppressionTableName:
+    Value: !Ref SuppressionTable
+  SesFeedbackTopicArn:
+    Value: !Ref SesFeedbackTopic
+  SesConfigurationSetName:
+    Value: !Ref SesConfigurationSet
+  LambdaExecutionRoleArn:
+    Value: !GetAtt SesFeedbackRole.Arn

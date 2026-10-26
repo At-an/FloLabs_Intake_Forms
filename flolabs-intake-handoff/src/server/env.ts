@@ -21,6 +21,51 @@ export const isAllowedTwentyUrl = (value: string): boolean => {
   return url.protocol === 'https:' || (url.protocol === 'http:' && LOOPBACK_HOSTS.has(url.hostname));
 };
 
+const emailSettingsShape = {
+  CRM_EMAIL_IMAP_HOST: z.string().min(1).optional(),
+  CRM_EMAIL_IMAP_PORT: z.coerce.number().int().min(1).max(65535).optional(),
+  CRM_EMAIL_IMAP_USERNAME: z.string().email().optional(),
+  CRM_EMAIL_IMAP_PASSWORD: z.string().min(1).optional(),
+  CRM_EMAIL_SMTP_HOST: z.string().min(1).optional(),
+  CRM_EMAIL_SMTP_PORT: z.coerce.number().int().min(1).max(65535).optional(),
+  CRM_EMAIL_SMTP_USERNAME: z.string().email().optional(),
+  CRM_EMAIL_SMTP_PASSWORD: z.string().min(1).optional(),
+  CRM_EMAIL_ALLOWED_RECIPIENTS: z.string().optional(),
+  CRM_EMAIL_DATABASE_PATH: z.string().min(1).optional(),
+  CRM_EMAIL_TEST_COMMANDS_ENABLED: z.enum(['true', 'false']).optional(),
+};
+const emailSettingsSchema = z.object(emailSettingsShape);
+type EmailSettings = z.infer<typeof emailSettingsSchema>;
+type EmailConfigIssue = { path: keyof EmailSettings; message: string };
+
+function emailConfigIssues(env: EmailSettings): EmailConfigIssue[] {
+  const issues: EmailConfigIssue[] = [];
+  const imapSettings = [env.CRM_EMAIL_IMAP_HOST, env.CRM_EMAIL_IMAP_PORT, env.CRM_EMAIL_IMAP_USERNAME, env.CRM_EMAIL_IMAP_PASSWORD];
+  if (imapSettings.some(Boolean) && !imapSettings.every(Boolean)) {
+    issues.push({ path: 'CRM_EMAIL_IMAP_PASSWORD', message: 'all IMAP settings must be configured together' });
+  }
+  const smtpSettings = [env.CRM_EMAIL_SMTP_HOST, env.CRM_EMAIL_SMTP_PORT, env.CRM_EMAIL_SMTP_USERNAME, env.CRM_EMAIL_SMTP_PASSWORD];
+  if (smtpSettings.some(Boolean) && !smtpSettings.every(Boolean)) {
+    issues.push({ path: 'CRM_EMAIL_SMTP_PASSWORD', message: 'all SMTP settings must be configured together' });
+  }
+  if ((env.CRM_EMAIL_IMAP_HOST || env.CRM_EMAIL_SMTP_HOST) && !env.CRM_EMAIL_DATABASE_PATH) {
+    issues.push({ path: 'CRM_EMAIL_DATABASE_PATH', message: 'required when email transport is configured' });
+  }
+  if (env.CRM_EMAIL_SMTP_HOST) {
+    const recipients = env.CRM_EMAIL_ALLOWED_RECIPIENTS?.split(',').map((address) => address.trim()).filter(Boolean) ?? [];
+    if (!recipients.length || !recipients.every((address) => z.string().email().safeParse(address).success)) {
+      issues.push({ path: 'CRM_EMAIL_ALLOWED_RECIPIENTS', message: 'a comma-separated list of valid test recipients is required for SMTP' });
+    }
+  }
+  if (env.CRM_EMAIL_IMAP_PORT && env.CRM_EMAIL_IMAP_PORT !== 993) {
+    issues.push({ path: 'CRM_EMAIL_IMAP_PORT', message: 'IMAP must use port 993 with implicit TLS' });
+  }
+  if (env.CRM_EMAIL_SMTP_PORT && env.CRM_EMAIL_SMTP_PORT !== 465) {
+    issues.push({ path: 'CRM_EMAIL_SMTP_PORT', message: 'SMTP must use port 465 with implicit TLS' });
+  }
+  return issues;
+}
+
 const baseSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   TWENTY_BASE_URL: z
@@ -37,9 +82,21 @@ const baseSchema = z.object({
   TRUSTED_IP_HEADER: z.enum(['cf-connecting-ip', 'x-forwarded-for', 'x-real-ip']).optional(),
   // Signs Form 1-3 links (T10). At least 32 characters; rotating it revokes all unused links.
   LINK_TOKEN_SECRET: z.string().min(32).optional(),
+  AWS_REGION: z.string().min(1).optional(),
+  SUPPRESSION_TABLE_NAME: z.string().min(3).optional(),
+  ...emailSettingsShape,
 });
 
 const envSchema = baseSchema
+  .superRefine((env, context) => {
+    for (const issue of emailConfigIssues(env)) {
+      context.addIssue({ code: 'custom', path: [issue.path], message: issue.message });
+    }
+  })
+  .refine((env) => Boolean(env.AWS_REGION) === Boolean(env.SUPPRESSION_TABLE_NAME), {
+    path: ['SUPPRESSION_TABLE_NAME'],
+    message: 'AWS_REGION and SUPPRESSION_TABLE_NAME must be configured together',
+  })
   .refine((env) => env.NODE_ENV !== 'production' || env.TURNSTILE_SITE_KEY, {
     path: ['TURNSTILE_SITE_KEY'],
     message: 'required in production',
@@ -77,6 +134,16 @@ export function parseEnv(source: Record<string, string | undefined>): Env {
   if (!result.success) {
     throw new EnvError([...new Set(result.error.issues.map((issue) => issue.path.join('.')))]);
   }
+  return result.data;
+}
+
+export function parseEmailEnvironment(source: Record<string, string | undefined>): EmailSettings {
+  const result = emailSettingsSchema.safeParse(source);
+  if (!result.success) {
+    throw new EnvError([...new Set(result.error.issues.map((issue) => issue.path.join('.')))]);
+  }
+  const issues = emailConfigIssues(result.data);
+  if (issues.length) throw new EnvError([...new Set(issues.map((issue) => issue.path))]);
   return result.data;
 }
 
