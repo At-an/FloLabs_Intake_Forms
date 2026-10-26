@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { COUNTRIES, countryName, isCountryCode } from './countries';
 import { labelOf } from './options';
 import { PROGRAMS, PROGRAMS_BY_TRACK, TRACKS, trackOf, tracksOf } from './programs';
-import { embedFrameAncestors } from './sites';
+import { embedFrameAncestors, SITES } from './sites';
 import { SOURCES } from './sources';
 
 // Offline check against the latest schema snapshot; the live check is options.live.test.ts.
@@ -74,8 +74,21 @@ describe('countries', () => {
 });
 
 describe('embed framing policy', () => {
-  it('lets any HTTPS website frame the embeds in production, and local pages only in development', () => {
-    expect(embedFrameAncestors(false)).toBe('https:');
-    expect(embedFrameAncestors(true)).toContain('http://localhost:*');
+  const production = embedFrameAncestors(false).split(' ');
+
+  it('lets exactly the 16 FloLabs www origins frame the embeds in production', () => {
+    expect(production).toHaveLength(16);
+    expect(production).toEqual(SITES.map((site) => site.origin));
+    expect(production).toContain('https://www.robocollective.ai');
+    for (const origin of production) expect(origin).toMatch(/^https:\/\/www\.[a-z0-9.-]+$/);
+  });
+
+  it.each(['https:', '*', 'https://*', "'self'", 'http://localhost:*', 'https://flolabsinnovations.com', 'https://evil.example.com'])(
+    'does not allow %s in production',
+    (source) => expect(production).not.toContain(source),
+  );
+
+  it('adds local test pages in development only', () => {
+    expect(embedFrameAncestors(true).split(' ')).toEqual(["'self'", 'http://localhost:*', 'http://127.0.0.1:*', ...production]);
   });
 });

@@ -197,7 +197,7 @@ T2a added TikTok, Reddit, YouTube, X (Twitter), Company Website, Job Board, Even
 | `applications` | RELATION one-to-many -> `application.site` |
 | `attachments` | RELATION one-to-many -> `attachment.target` |
 
-Records (16, created 2026-10-24 by `scripts/t2-sites.mjs`; `flomad` inactive: expired certificate, site down):
+Records (16, created 2026-10-24 by `scripts/t2-sites.mjs`; `flomad` inactive: expired certificate, site down). Checked 2026-10-26 against the project lead's canonical registry (`src/shared/config/sites.ts`): every `siteId`, name and hostname matches; no cleanup needed. Only active Sites are accepted on submission:
 
 | id | name | siteId | hostname | active |
 |---|---|---|---|---|

@@ -164,6 +164,17 @@ describe('POST /api/forms/contacted (Form 1, T12)', () => {
     const form2Token = createLinkToken({ applicationId: APP, formType: 'BEFORE_MEETING' }, SECRET);
     expect((await wrongForm.handle(post('contacted', wrongForm.body({ answers: FORM_1_ANSWERS, token: form2Token })))).status).toBe(403);
 
+    const expired = counting();
+    const oldToken = createLinkToken({ applicationId: APP, formType: 'CONTACTED' }, SECRET, new Date(Date.now() - 22 * 86_400_000));
+    const res2 = await expired.handle(post('contacted', expired.body({ answers: FORM_1_ANSWERS, token: oldToken })));
+    expect(res2.status).toBe(403);
+    expect(await res2.json()).toEqual({
+      error: {
+        code: 'LINK_EXPIRED',
+        message: "This link has expired. Links are valid for 21 days. Please write to hr@flolabsinnovations.com and we'll send you a new one.",
+      },
+    });
+
     const bot = counting(async () => ({ ok: false, code: 'TURNSTILE_FAILED' }));
     const res3 = await bot.handle(post('contacted', bot.body({ answers: FORM_1_ANSWERS })));
     expect(res3.status).toBe(403);

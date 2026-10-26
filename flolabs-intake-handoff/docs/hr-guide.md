@@ -62,7 +62,8 @@ New Applications start with **Lifecycle Stage = Interested** and **Lead Status =
 About the links:
 - Each link is **personal**: it belongs to one Application and one form. Never send one applicant's link to someone else.
 - Each link **works once**. After the applicant sends the form, the link shows "You have already sent this form".
-- Links **never expire**. Opening a link or filling it halfway does not use it up. Only a successful send does.
+- Links **expire 21 days** after the tech team creates them. After that the applicant sees "This link has expired" and is asked to write to hr@flolabsinnovations.com; ask the tech team for a new link. So send links soon after you receive them.
+- Opening a link or filling it halfway does not use it up. Only a successful send does.
 - The forms can be sent in any order; nothing forces Form 1 before Form 2.
 
 What the applicant sees: their name, email and programs at the top (read-only), a sentence telling them which track each program belongs to, and only the questions for **their own programs**. Someone who applied for programs in two tracks gets one combined form. Forms 1 and 2 have three steps (About you or Program overview → Interest or Thought and Feedback → Closing question). The applicant can go back and forth, and their answers are saved **in their own browser** while they type, so closing the tab does not lose them on that device.
@@ -133,16 +134,14 @@ To list subscribers: People → filter **Communication Consent = Yes**.
 
 Each FloLabs website has a **Site** record in Twenty (16 today: FloLabs International, Robocollective, FloBrain, Bootcamp University, ...). When a form is placed on a website, it is tagged with that website's **Site ID** (for example `robocollective`), so every submission knows where it came from.
 
-Applications and Inquiries carry a **Site status**:
+Forms are accepted **only from a website that is in Twenty and active**. A submission is **refused** (the visitor sees "This form cannot be sent from this page", and nothing is saved in Twenty) when:
+- no website was given, for example the `/apply` link was shared **without `?site=`**;
+- the Site ID is not in Twenty, for example a new website not added yet;
+- the website is marked **inactive** (today: Flomad).
 
-| Site status | Meaning |
-|---|---|
-| **Known** | The website is in Twenty and active. The submission is linked to its Site. |
-| **Inactive** | The website is in Twenty but marked inactive (today: Flomad). Still linked to that Site. |
-| **Unknown** | The website's Site ID is not in Twenty yet, for example a new website. The Site field is empty; **Site Key Received** shows the ID it sent. Add the Site in Twenty. |
-| **Missing** | No website was given (for example the `/apply` link was shared without `?site=`). The Site field is empty. |
+So always share the Application link **with** its `?site=`, for example `https://forms.flolabsinnovations.com/apply?site=flolabs_international`. A new website must be added by the tech team (with the project lead's approval) before its forms work.
 
-Submissions are never refused because of the website; they are only marked.
+Every Application and Inquiry therefore has **Site status = Known** and is linked to its Site. Older test records may still show Missing, Unknown or Inactive from before this rule.
 
 ## 7. Programs and tracks
 
@@ -246,7 +245,6 @@ Suggested saved views (Twenty: open a list → filter/sort → save as view):
 - **Ready for final interview:** Form Submissions, Form Type = Masterclass, Continue To Interview = Yes.
 - **Open Contact Us messages:** Inquiries, Status = New.
 - **Newsletter subscribers:** People, Communication Consent = Yes.
-- **Applications from an unknown website:** Applications, Site Status = Unknown (then add the Site).
 
 ## 10. Email templates
 

@@ -32,7 +32,8 @@ const formInput: ApplicationFormInput = {
 const data = (overrides: Partial<ApplicationFormInput> = {}): ApplicationFormData =>
   applicationSchema.parse({ ...formInput, ...overrides });
 
-const run = (fake: ReturnType<typeof fakeTwenty>, siteKey?: string, input = data()) => {
+// An active Site unless a test says otherwise (missing, unknown and inactive sites are refused).
+const run = (fake: ReturnType<typeof fakeTwenty>, siteKey: string | undefined = 'robocollective', input = data()) => {
   const { logger, lines } = captureLogger();
   return { promise: submitApplication(input, siteKey, CV, { twenty: fake.twenty, logger, now: () => NOW }), lines };
 };
@@ -108,7 +109,7 @@ describe('submitApplication: CV (T6c)', () => {
       },
     };
     const { logger } = captureLogger();
-    await expect(submitApplication(data(), undefined, CV, { twenty: failing, logger })).rejects.toBeInstanceOf(TwentyError);
+    await expect(submitApplication(data(), 'robocollective', CV, { twenty: failing, logger })).rejects.toBeInstanceOf(TwentyError);
     expect([fake.calls.createPerson, fake.calls.updatePerson, fake.calls.createApplication]).toEqual([[], [], []]);
   });
 
@@ -132,13 +133,6 @@ describe('submitApplication: Person consent from the marketing opt-in (spec D17)
     });
   });
 
-  it('records no consent site when the link had an unknown site', async () => {
-    const fake = fakeTwenty();
-    await run(fake, 'not_a_site', data({ marketingOptIn: true })).promise;
-    expect(fake.calls.createPerson[0]).toMatchObject({ communicationConsent: true });
-    expect(fake.calls.createPerson[0]).not.toHaveProperty('communicationConsentSite');
-  });
-
   it('records no Person consent when the box is not ticked', async () => {
     const fake = fakeTwenty();
     await run(fake).promise;
@@ -146,33 +140,27 @@ describe('submitApplication: Person consent from the marketing opt-in (spec D17)
   });
 });
 
-describe('submitApplication: Site resolution (approved 2026-10-24)', () => {
-  const siteFields = async (siteKey: string | undefined) => {
-    const fake = fakeTwenty();
-    await run(fake, siteKey).promise;
-    const { siteId, siteStatus, siteKeyReceived } = fake.calls.createApplication[0]!;
-    return { siteId, siteStatus, siteKeyReceived };
-  };
-
+describe('submitApplication: Site (project lead, 2026-10-26: known and active only)', () => {
   it('links an active Site and marks it KNOWN', async () => {
-    expect(await siteFields('robocollective')).toEqual({ siteId: SITES[1]!.id, siteStatus: 'KNOWN', siteKeyReceived: 'robocollective' });
+    const fake = fakeTwenty();
+    await run(fake, 'robocollective').promise;
+    const { siteId, siteStatus, siteKeyReceived } = fake.calls.createApplication[0]!;
+    expect({ siteId, siteStatus, siteKeyReceived }).toEqual({ siteId: SITES[1]!.id, siteStatus: 'KNOWN', siteKeyReceived: 'robocollective' });
   });
 
-  it.each([undefined, '', '   '])('leaves the Site empty and marks MISSING when the key is %j', async (siteKey) => {
-    expect(await siteFields(siteKey)).toEqual({ siteId: undefined, siteStatus: 'MISSING', siteKeyReceived: undefined });
-  });
-
-  it.each(['not_a_site', 'Robo Collective!'])('leaves the Site empty and marks UNKNOWN for %j, keeping the key', async (siteKey) => {
-    expect(await siteFields(siteKey)).toEqual({ siteId: undefined, siteStatus: 'UNKNOWN', siteKeyReceived: siteKey });
-  });
-
-  it('links an inactive Site and marks it INACTIVE', async () => {
-    expect(await siteFields('flomad')).toEqual({ siteId: SITES[2]!.id, siteStatus: 'INACTIVE', siteKeyReceived: 'flomad' });
-  });
-
-  it('stores at most 64 characters of the received key', async () => {
-    const { siteKeyReceived } = await siteFields('x'.repeat(200));
-    expect(siteKeyReceived).toHaveLength(64);
+  it.each([
+    ['missing', undefined, 'SITE_MISSING'],
+    ['missing', '   ', 'SITE_MISSING'],
+    ['unknown', 'not_a_site', 'SITE_UNKNOWN'],
+    ['unknown', 'Robo Collective!', 'SITE_UNKNOWN'],
+    ['unknown', 'x'.repeat(200), 'SITE_UNKNOWN'],
+    ['inactive', 'flomad', 'SITE_INACTIVE'],
+  ])('refuses a %s site (%j) before writing anything, the CV included', async (_label, siteKey, code) => {
+    const fake = fakeTwenty();
+    const { logger, lines } = captureLogger();
+    await expect(submitApplication(data(), siteKey, CV, { twenty: fake.twenty, logger })).rejects.toMatchObject({ code: 'SITE_NOT_ALLOWED' });
+    expect([fake.calls.uploadFile, fake.calls.createPerson, fake.calls.updatePerson, fake.calls.createApplication]).toEqual([[], [], [], []]);
+    expect(lines.map((l) => JSON.parse(l))).toEqual([expect.objectContaining({ event: 'application.site_refused', code })]);
   });
 });
 

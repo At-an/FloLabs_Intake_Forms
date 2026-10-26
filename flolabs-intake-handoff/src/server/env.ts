@@ -13,9 +13,20 @@ export const TURNSTILE_TEST_KEYS = {
   secretKey: '1x0000000000000000000000000000000AA',
 } as const;
 
+// Twenty over HTTPS, or plain HTTP only on this machine (production: the forms app and Twenty
+// share the droplet, TWENTY_BASE_URL=http://127.0.0.1:3000). Remote HTTP is refused.
+const LOOPBACK_HOSTS = new Set(['127.0.0.1', 'localhost']);
+export const isAllowedTwentyUrl = (value: string): boolean => {
+  const url = new URL(value);
+  return url.protocol === 'https:' || (url.protocol === 'http:' && LOOPBACK_HOSTS.has(url.hostname));
+};
+
 const baseSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
-  TWENTY_BASE_URL: z.url({ protocol: /^https$/ }).transform((url) => url.replace(/\/+$/, '')),
+  TWENTY_BASE_URL: z
+    .url({ protocol: /^https?$/ })
+    .refine(isAllowedTwentyUrl, 'must be https, or http on 127.0.0.1 or localhost')
+    .transform((url) => url.replace(/\/+$/, '')),
   TWENTY_API_KEY: z.string().min(20),
   TURNSTILE_SITE_KEY: z.string().min(10).optional(),
   TURNSTILE_SECRET_KEY: z.string().min(10).optional(),

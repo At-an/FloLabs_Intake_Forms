@@ -10,8 +10,8 @@ import { EmbedFrame } from './EmbedFrame';
 import { NewsletterForm } from './NewsletterForm';
 
 // /embed/<form>?site=<site key>: the form shown inside the iframe that embed.js puts into a
-// section of any HTTPS website. The site key is not checked here; each submission records
-// and marks it (src/server/sites.ts).
+// section of a FloLabs website (only those may frame it: src/shared/config/sites.ts). The site
+// key is checked when the form is sent: only a known, active Site is accepted (src/server/sites.ts).
 
 export const dynamic = 'force-dynamic';
 

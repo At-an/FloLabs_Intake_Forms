@@ -1,0 +1,287 @@
+FLOLABS INTAKE FORMS — REQUIRED FIXES BEFORE PUBLIC LAUNCH
+Repository: At-an/FloLabs_Intake_Forms
+App folder: flolabs-intake-handoff/
+
+PURPOSE
+Make the following targeted changes to the existing forms implementation. Preserve the current architecture and working behavior unless a change is explicitly requested below. Do not redesign the forms system.
+
+CURRENT DEPLOYMENT STATE
+- The current repository builds successfully with Node.js 24.
+- The app is already installed on the production DigitalOcean droplet.
+- It is running privately through systemd on:
+  http://127.0.0.1:3001
+- Twenty CRM remains on port 3000.
+- The forms service is not yet publicly routed through Caddy.
+- Cloudflare R2 storage is configured in Twenty and has been tested successfully with a PDF upload/download.
+- Cloudflare Turnstile production keys have been created.
+- A dedicated Twenty API key named "Application Form Integration" already exists.
+- Production environment variables are already prepared on the server.
+- Development-only routes /dev/embed-test and /dev/link-form correctly return 404 in production.
+
+IMPORTANT DATA-MODEL DECISION
+Do NOT introduce a Subscription object.
+Keep the existing consent design:
+- Newsletter marketing consent is stored on Person.
+- Application marketing/email consent remains on Application.
+- Application SMS/phone-messaging consent remains on Application.
+Do not merge these consent types unless explicitly requested later.
+
+============================================================
+1. CANONICAL SITE REGISTRY
+============================================================
+
+Treat the following list as the source of truth for site_id, site name, and canonical hostname.
+
+- athletic_performance_intelligence | Athletic Performance Intelligence | https://www.athleticperformanceintelligence.com
+- bootcamp_university | Bootcamp University | https://www.bootcampuniversity.org
+- caipo | CAIPO | https://www.caipo.ai
+- cosmos_intelligence | Cosmos Intelligence | https://www.cosmosintelligence.org
+- flo_studios | Flo Studios | https://www.flostudios.ai
+- flobrain | FloBrain | https://www.flobrain.ai
+- flolabs_innovations_group | FloLabs Innovations Group | https://www.flolabsinnovations.com
+- flolabs_international | FloLabs International | https://www.flolabs.international
+- flomad | Flomad | https://www.flomad.com
+- flomad_travel | Flomad Travel | https://www.flomadtravel.com
+- hephaestus_international | Hephaestus International | https://www.hephaestus.international
+- legal_ethics_ventures_institute | Legal Ethics Ventures Institute | https://www.legalethicsventuresinstitute.com
+- moodchanger | Moodchanger | https://www.moodchanger.ai
+- robocollective | Robocollective | https://www.robocollective.ai
+- space_ventures_institute | Space Ventures Institute | https://www.spaceventuresinstitute.com
+- tarrl | TARRL | https://www.tarrl.org
+
+IMPORTANT:
+- The canonical JSON supplied by the project lead uses site_id "robocollective".
+- Do NOT change it to "robocollective_ai".
+- Compare the repository's hard-coded site lists, examples, scripts, tests, and docs against this exact registry.
+- Correct any discrepancy found elsewhere.
+- Avoid creating duplicate Site records merely because a previous identifier differs.
+- If a migration/cleanup is needed for an already-created Site record, document it rather than silently creating a duplicate.
+
+Files likely relevant include:
+- scripts/t2-sites.mjs
+- src/shared/config/sites.ts
+- src/server/sites.ts
+- embed examples
+- production-launch documentation
+- tests/fixtures that contain site IDs
+
+============================================================
+2. REJECT INVALID SITE IDs
+============================================================
+
+Current behavior records MISSING, UNKNOWN, or INACTIVE site values instead of rejecting the submission.
+
+Change production submission behavior so that:
+- KNOWN + ACTIVE site -> accepted
+- MISSING site -> rejected
+- UNKNOWN site -> rejected
+- INACTIVE site -> rejected
+
+Requirements:
+- Do not create Person, Application, Inquiry, Newsletter consent, or other CRM records from a submission whose site is invalid.
+- Return a safe generic public error; do not leak CRM internals.
+- Keep useful structured server-side logging for diagnosis.
+- Update tests for all four states: known/active, missing, unknown, inactive.
+- Update docs that currently say unknown sites still work.
+
+If an existing internal status type is useful for logging, it may remain internally, but invalid statuses must not proceed to CRM writes.
+
+============================================================
+3. REPLACE "ANY HTTPS SITE" IFRAME POLICY WITH EXPLICIT ALLOW-LIST
+============================================================
+
+Current embed CSP behavior:
+  frame-ancestors https:
+
+This is too broad.
+
+Change the embed Content-Security-Policy so /embed/* pages may be framed only by approved FloLabs site origins.
+
+Use the canonical HTTPS hostnames from the registry above as the production allow-list.
+
+The intended production parent origins are:
+
+- https://www.athleticperformanceintelligence.com
+- https://www.bootcampuniversity.org
+- https://www.caipo.ai
+- https://www.cosmosintelligence.org
+- https://www.flostudios.ai
+- https://www.flobrain.ai
+- https://www.flolabsinnovations.com
+- https://www.flolabs.international
+- https://www.flomad.com
+- https://www.flomadtravel.com
+- https://www.hephaestus.international
+- https://www.legalethicsventuresinstitute.com
+- https://www.moodchanger.ai
+- https://www.robocollective.ai
+- https://www.spaceventuresinstitute.com
+- https://www.tarrl.org
+
+Requirements:
+- Production must NOT use generic "https:" for frame-ancestors.
+- Keep localhost/127.0.0.1 development allowances if needed for local testing.
+- Prefer one centralized source/configuration for the allow-list rather than duplicating hostname lists across files.
+- Do not broaden to wildcard Internet origins.
+- If bare/non-www hostnames are genuinely needed, do not guess. Flag them for explicit approval rather than silently adding them.
+- Add/update tests for permitted and non-permitted parent origins where practical.
+- Update production documentation and examples.
+
+============================================================
+4. FORM 1-3 LINKS EXPIRE AFTER 21 DAYS
+============================================================
+
+Current signed link payload already contains an issued-at timestamp.
+
+Change Form 1-3 personal links so:
+- a token is valid for 21 days from issuance;
+- after 21 days it is rejected;
+- single-use behavior remains unchanged;
+- signature verification remains unchanged;
+- rotating LINK_TOKEN_SECRET still revokes unused links.
+
+Implementation expectations:
+- Add an explicit EXPIRED verification outcome/code.
+- Use the existing issued-at value rather than introducing unnecessary persistence.
+- Validate malformed/future timestamps safely.
+- Provide a clear but non-sensitive applicant-facing expired-link message.
+- Add tests for:
+  - valid token just before expiry;
+  - expired token after 21 days;
+  - malformed token;
+  - bad signature;
+  - wrong form;
+  - already-used link behavior remains intact.
+- Update comments/docs that currently state links never expire.
+
+Do not change the 21-day duration without project-lead approval.
+
+============================================================
+5. PRODUCTION FORMS PORT IS 3001, NOT 3000
+============================================================
+
+Twenty already occupies host port 3000.
+
+The forms app has been successfully tested on:
+  127.0.0.1:3001
+
+Update all production deployment documentation/examples so that the forms service uses:
+  next start -p 3001 -H 127.0.0.1
+
+and Caddy proxies the forms hostname to:
+  127.0.0.1:3001
+
+Do NOT change Twenty's existing port 3000.
+
+Check and update:
+- docs/production-launch.md
+- systemd examples
+- Caddy examples
+- nginx examples if present
+- smoke-test commands
+- any other production docs referring to forms on port 3000
+
+Local developer usage may continue to use another port if appropriate; this requirement is specifically for the production droplet.
+
+============================================================
+6. ALLOW SAME-SERVER TWENTY URL SAFELY
+============================================================
+
+The production forms service and Twenty run on the same droplet.
+
+Desired production value:
+  TWENTY_BASE_URL=http://127.0.0.1:3000
+
+Current env validation appears to require HTTPS only.
+
+Modify validation so this exact local-loopback HTTP use case is allowed while retaining HTTPS requirements for normal remote Twenty URLs.
+
+Preferred security behavior:
+- allow https:// URLs generally;
+- additionally allow http://127.0.0.1:<port> and/or http://localhost:<port> for same-host internal use;
+- do NOT permit arbitrary remote http:// URLs.
+
+Update tests for accepted/rejected URL cases.
+
+Do not change the currently deployed production environment file; the project lead will change TWENTY_BASE_URL after this code is merged and deployed.
+
+============================================================
+7. PRESERVE WORKING R2, TURNSTILE, FORM, AND CONSENT BEHAVIOR
+============================================================
+
+Do not unnecessarily change:
+- Cloudflare Turnstile verification flow;
+- CV upload behavior;
+- Twenty native FILES handling;
+- R2 integration assumptions;
+- Person matching logic;
+- idempotency via submissionKey;
+- Source handling;
+- Form Submission raw answers and answersSummary;
+- Reference creation;
+- Contact Us / Inquiry flow;
+- Newsletter Person-level consent;
+- Application email and SMS consent separation;
+- current rate limits unless a required change above affects their tests.
+
+No new external service should be introduced for these fixes.
+
+============================================================
+8. TESTS AND DOCUMENTATION
+============================================================
+
+After implementing the changes:
+
+Run at minimum:
+- npm run lint
+- npm run typecheck
+- npm test
+- npm run build
+
+Do not run destructive/live-write tests against production unless explicitly authorized.
+
+Update affected documentation so it matches actual behavior. In particular remove/replace statements saying:
+- any HTTPS site may embed the forms;
+- unknown/missing/inactive sites still work;
+- Form 1-3 links never expire;
+- production forms use port 3000.
+
+============================================================
+9. ACCEPTANCE CHECKLIST
+============================================================
+
+Consider the work complete only when all of the following are true:
+
+[ ] Repository builds successfully under Node.js 24.
+[ ] Canonical site registry matches the supplied 16-site list exactly.
+[ ] "robocollective" remains the canonical site_id unless the project lead supplies a different canonical source.
+[ ] Missing site submissions are rejected before CRM writes.
+[ ] Unknown site submissions are rejected before CRM writes.
+[ ] Inactive site submissions are rejected before CRM writes.
+[ ] Known active site submissions continue working.
+[ ] /embed/* CSP no longer contains generic "frame-ancestors https:" in production.
+[ ] /embed/* CSP contains only approved FloLabs parent origins in production.
+[ ] Form 1-3 links expire after 21 days.
+[ ] Single-use behavior still works.
+[ ] Port 3001 is used in production forms deployment documentation/examples.
+[ ] Twenty remains on port 3000.
+[ ] env validation allows safe same-host http://127.0.0.1:3000 for Twenty.
+[ ] arbitrary remote HTTP Twenty URLs remain rejected.
+[ ] Turnstile behavior is unchanged and tests pass.
+[ ] CV/file upload behavior is unchanged and tests pass.
+[ ] Existing consent design remains unchanged; no Subscription object is added.
+[ ] lint, typecheck, test, and build all pass.
+[ ] Documentation accurately reflects the resulting implementation.
+
+============================================================
+10. HANDOFF BACK TO PROJECT LEAD
+============================================================
+
+When finished, provide:
+1. a concise summary of changed files;
+2. any migration/manual cleanup required in Twenty Site records;
+3. test results;
+4. any assumptions that could not be verified;
+5. the commit/branch to deploy.
+
+Do not deploy publicly or change production DNS/Caddy without project-lead approval.

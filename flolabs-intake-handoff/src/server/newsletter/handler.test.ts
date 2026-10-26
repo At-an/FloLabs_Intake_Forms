@@ -90,14 +90,26 @@ describe('POST /api/newsletter', () => {
     expect((await res.json()).error.fields.email).toMatch(/valid email/);
   });
 
-  it.each([
-    ['an unknown website', 'nope', 'nope'],
-    ['an inactive Site', 'flomad', 'flomad'],
-    ['no site key', undefined, undefined],
-  ])('accepts %s and keeps the key as received', async (_case, site, expectedSite) => {
+  it('records the active Site the visitor subscribed on', async () => {
     const { handle, fake } = setup();
-    expect((await handle(post({ ...body, site }))).status).toBe(200);
-    expect(fake.calls.createPerson[0]!.communicationConsentSite).toBe(expectedSite);
+    expect((await handle(post(body))).status).toBe(200);
+    expect(fake.calls.createPerson[0]!.communicationConsentSite).toBe('robocollective');
+  });
+
+  it.each([
+    ['an unknown website', 'nope', 'SITE_UNKNOWN'],
+    ['an inactive Site', 'flomad', 'SITE_INACTIVE'],
+    ['no site key', undefined, 'SITE_MISSING'],
+  ])('refuses %s with a generic 403 and writes nothing', async (_case, site, code) => {
+    const { handle, fake, lines } = setup();
+    const res = await handle(post({ ...body, site }));
+    expect(res.status).toBe(403);
+    expect((await res.json()).error).toEqual({
+      code: 'SITE_NOT_ALLOWED',
+      message: 'This form cannot be sent from this page. Please use the form on a FloLabs website.',
+    });
+    expect([fake.calls.createPerson, fake.calls.updatePerson]).toEqual([[], []]);
+    expect(lines.map((l) => JSON.parse(l))).toContainEqual(expect.objectContaining({ event: 'newsletter.site_refused', code }));
   });
 
   it('refuses a failed bot check and writes nothing', async () => {

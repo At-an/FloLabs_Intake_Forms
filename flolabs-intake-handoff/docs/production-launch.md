@@ -7,7 +7,7 @@ For the person who deploys and runs the forms app (team lead / DevOps). Written 
 - the public link `/apply?site=<site_id>`;
 - the personal Form 1-3 links (`/contacted`, `/before-meeting`, `/masterclass`), created by HR.
 
-It talks only to Twenty (`https://157-230-82-204.sslip.io`) and Cloudflare Turnstile. CVs go into Twenty, whose file storage is on Cloudflare R2.
+It talks only to Twenty (on the same droplet, at `http://127.0.0.1:3000`; the app itself runs on `127.0.0.1:3001`) and Cloudflare Turnstile. CVs go into Twenty, whose file storage is on Cloudflare R2.
 
 **Rate limits** (set by FloLabs, in `src/server/rate-limit.ts`): **50 requests per IP address per 10 minutes**, and **5 submissions per email address** (per Application for Forms 1-3) **per 30 minutes**. Visitors over a limit see "Too many attempts. Please wait a moment and try again."
 
@@ -103,7 +103,7 @@ jobs:
    Plus permission to **upload files** (the CV goes into the Application's CV field), under whatever name the Twenty role settings use for it.
 
    **Remove the Data Model permission** from this role. It was only needed to create the schema during development; the running app never changes the schema.
-4. **Sites:** every website that will embed the forms has an **active** Site record with its `siteId` (for example `robocollective`). A website with no Site record still works, but its submissions are marked UNKNOWN.
+4. **Sites:** every website that will embed the forms has an **active** Site record with its `siteId` (for example `robocollective`). Submissions with a missing, unknown or inactive site are **refused** before anything is written to Twenty. The 16 Site records already match the canonical list in `src/shared/config/sites.ts`; Flomad stays inactive until its website is back.
 
 **Check:** with the new key in a local `.env.local`, `npm run test:live` passes (read-only).
 
@@ -118,7 +118,7 @@ Create `/opt/flolabs-forms/.env.production` (owner: the service user, mode `600`
 
 | Variable | Value |
 |---|---|
-| `TWENTY_BASE_URL` | `https://157-230-82-204.sslip.io` (or Twenty's final address) |
+| `TWENTY_BASE_URL` | `http://127.0.0.1:3000` (Twenty on the same droplet). Plain `http` is accepted only for `127.0.0.1` or `localhost`; any other address must be `https`. |
 | `TWENTY_API_KEY` | the production key from step 3 |
 | `TURNSTILE_SITE_KEY` / `TURNSTILE_SECRET_KEY` | from step 4 |
 | `LINK_TOKEN_SECRET` | 48 random bytes: `node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"` |
@@ -157,7 +157,7 @@ User=flolabs-forms
 WorkingDirectory=/opt/flolabs-forms/repo/flolabs-intake-handoff
 EnvironmentFile=/opt/flolabs-forms/.env.production
 Environment=NODE_ENV=production
-ExecStart=/usr/bin/node node_modules/next/dist/bin/next start -p 3000 -H 127.0.0.1
+ExecStart=/usr/bin/node node_modules/next/dist/bin/next start -p 3001 -H 127.0.0.1
 Restart=on-failure
 NoNewPrivileges=true
 ProtectSystem=strict
@@ -172,19 +172,21 @@ systemctl daemon-reload && systemctl enable --now flolabs-forms
 journalctl -u flolabs-forms -f      # structured JSON logs (record IDs and codes only)
 ```
 
-The app listens on `127.0.0.1:3000` only; the reverse proxy is the only way in.
+The app listens on `127.0.0.1:3001` only (Twenty keeps port **3000**); the reverse proxy is the only way in.
 
-**Reverse proxy.** Add a site for `forms.flolabsinnovations.com` to the proxy already in front of Twenty, forwarding to `127.0.0.1:3000`:
+**Check before routing it:** `curl -I http://127.0.0.1:3001/apply` on the server returns 200.
+
+**Reverse proxy** (only with the project lead's approval). Add a site for `forms.flolabsinnovations.com` to the proxy already in front of Twenty, forwarding to `127.0.0.1:3001`:
 
 - **Caddy:**
   ```
   forms.flolabsinnovations.com {
-    reverse_proxy 127.0.0.1:3000 {
+    reverse_proxy 127.0.0.1:3001 {
       header_up X-Real-IP {remote_host}
     }
   }
   ```
-- **nginx:** `proxy_pass http://127.0.0.1:3000; proxy_set_header X-Real-IP $remote_addr; proxy_set_header Host $host;` plus `client_max_body_size 6m;` (the CV limit is 5 MB).
+- **nginx:** `proxy_pass http://127.0.0.1:3001; proxy_set_header X-Real-IP $remote_addr; proxy_set_header Host $host;` plus `client_max_body_size 6m;` (the CV limit is 5 MB).
 
 **Behind Cloudflare** (recommended): set `TRUSTED_IP_HEADER=cf-connecting-ip`, and allow HTTP(S) to the server **only from Cloudflare's IP ranges** (cloudflare.com/ips) in the firewall. Otherwise anyone could reach the server directly and fake the header to dodge the rate limits.
 
@@ -192,11 +194,12 @@ The app listens on `127.0.0.1:3000` only; the reverse proxy is the only way in.
 
 ## 7. Smoke test after every deployment (10 minutes)
 
-1. **Headers:** `curl -I https://forms.flolabsinnovations.com/apply` shows `Content-Security-Policy`, `Strict-Transport-Security`, `X-Frame-Options: DENY`; `curl -I .../embed/contact-us` shows `frame-ancestors https:`.
+1. **Headers:** `curl -I https://forms.flolabsinnovations.com/apply` shows `Content-Security-Policy`, `Strict-Transport-Security`, `X-Frame-Options: DENY`; `curl -I .../embed/contact-us` shows `frame-ancestors` followed by the 16 `https://www.` FloLabs addresses and nothing else (no bare `https:`). Before the proxy is in place, run the same `curl -I` checks on the server against `http://127.0.0.1:3001`.
 2. **Dev pages hidden:** `/dev/embed-test` and `/dev/link-form` return **404**.
 3. **Embed on one real website** (step 8) and check the form appears and resizes.
 4. **One real end-to-end run** with a FloLabs staff email:
-   - submit the Application form with a small PDF; the Person, Application and CV appear in Twenty;
+   - submit the Application form with a small PDF; the Person, Application and CV appear in Twenty. **First run with `TWENTY_BASE_URL=http://127.0.0.1:3000`: open the CV in Twenty to confirm the upload worked** (the app sends the file only to Twenty's own address or to R2; anything else is refused with `UNEXPECTED_UPLOAD_HOST` in the logs);
+   - open `/apply?site=nope` and send it: the form is **refused** ("This form cannot be sent from this page") and nothing appears in Twenty;
    - on the server, create a Form 1 link: `cd /opt/flolabs-forms/repo/flolabs-intake-handoff && sudo -u flolabs-forms node --env-file=/opt/flolabs-forms/.env.production --conditions=react-server scripts/make-form-link.mts <applicationId> contacted https://forms.flolabsinnovations.com`;
    - open it, send Form 1; the Form Submission appears in Twenty; reopening the link shows "already sent".
 5. **Logs:** `journalctl -u flolabs-forms --since "15 min ago"` shows `application.created` / `form_submission.contacted.created` and **no** names, emails or answers.
@@ -212,7 +215,9 @@ On each FloLabs website, where the form should appear (the Site's `siteId` goes 
 <script src="https://forms.flolabsinnovations.com/embed.js" async></script>
 ```
 
-Use `data-flolabs-form="contact-us"` or `"newsletter"` for the other two. The script tag is needed once per page. The Application form can also be shared as a plain link: `https://forms.flolabsinnovations.com/apply?site=<siteId>`.
+Use `data-flolabs-form="contact-us"` or `"newsletter"` for the other two. The script tag is needed once per page. The Application form can also be shared as a plain link: `https://forms.flolabsinnovations.com/apply?site=<siteId>`. **Always include `?site=`**: without it, or with an unknown or inactive site, the submission is refused.
+
+Only the 16 `https://www.` addresses in `src/shared/config/sites.ts` may show the embedded forms. A page at a bare address (for example `https://flolabsinnovations.com` without `www`) shows an empty box instead of the form, unless that website redirects to `www`. Check each website; adding a bare address needs the project lead's approval and a release.
 
 ## 9. Releasing updates and rolling back
 
@@ -240,7 +245,7 @@ systemctl restart flolabs-forms      # then run the smoke test (step 7)
 | Logs | When something looks wrong | `journalctl -u flolabs-forms`; every line has an `event` and a `code` (e.g. `RATE_LIMIT_IP`, `FORBIDDEN`). |
 | Twenty backups | Daily (Twenty's own setup) | All form data lives in Twenty; the app stores nothing. |
 | Secret rotation | If a secret may have leaked | Twenty key and Turnstile secret: replace in `.env.production`, restart. `LINK_TOKEN_SECRET`: same, but unused Form 1-3 links stop working; HR re-sends them. |
-| New website | When it launches | Add its Site in Twenty (active), then the embed snippet (step 8). |
+| New website | When it launches | With the project lead's approval: add it to `src/shared/config/sites.ts` and release (so it may embed the forms), add its Site in Twenty (active, or run `scripts/t2-sites.mjs`), then the embed snippet (step 8). |
 
 ## 11. Before go-live: housekeeping
 
@@ -251,6 +256,6 @@ systemctl restart flolabs-forms      # then run the smoke test (step 7)
 
 - One app instance only (in-memory rate limits and per-link queue).
 - The Content-Security-Policy allows inline scripts (Next.js needs them; a per-request nonce would remove this).
-- Form 1-3 links never expire (single use; revocable by rotating `LINK_TOKEN_SECRET`).
+- Form 1-3 links expire **21 days** after they are created, and are single use; rotating `LINK_TOKEN_SECRET` revokes all unused links. HR sends a new link for an expired one.
 - HR creates and sends Form 1-3 links by hand; the order of the forms is not enforced (automation and Amazon SES come later).
 - Newsletter is single opt-in (double opt-in with Amazon SES is a future step).
