@@ -222,7 +222,17 @@ export function createSqliteEmailStore(databasePath: string): EmailStore {
 }
 
 export class EmailSendError extends Error {
-  constructor(readonly code: 'INVALID_MESSAGE' | 'RECIPIENT_NOT_APPROVED' | 'DUPLICATE' | 'IDEMPOTENCY_CONFLICT' | 'STORE_FAILED' | 'SMTP_FAILED' | 'DELIVERY_UNKNOWN') {
+  constructor(readonly code:
+    | 'INVALID_MESSAGE'
+    | 'RECIPIENT_NOT_APPROVED'
+    | 'CONSENT_REQUIRED'
+    | 'SUPPRESSED'
+    | 'ELIGIBILITY_UNAVAILABLE'
+    | 'DUPLICATE'
+    | 'IDEMPOTENCY_CONFLICT'
+    | 'STORE_FAILED'
+    | 'SMTP_FAILED'
+    | 'DELIVERY_UNKNOWN') {
     super(`Email send failed: ${code}`);
     this.name = 'EmailSendError';
   }
@@ -246,6 +256,10 @@ type SmtpMessage = {
   references?: string[];
 };
 type SmtpResponse = { messageId?: string; accepted?: Array<string | { address: string }> };
+type MarketingEligibility =
+  | { allowed: true; personId: string }
+  | { allowed: false; reason: 'INVALID_EMAIL' | 'NO_CONSENT' | 'SUPPRESSED' | 'LOOKUP_FAILED' };
+type MarketingEligibilityCheck = (email: string, topic: string) => Promise<MarketingEligibility>;
 
 export async function sendEmail(
   settings: SmtpSettings,
@@ -255,6 +269,8 @@ export async function sendEmail(
     to: string;
     subject: string;
     text: string;
+    purpose: 'HR_TEST' | 'MARKETING';
+    topic?: string;
     contactId?: string;
     applicationId?: string;
     replyToMessageId?: string;
@@ -278,6 +294,7 @@ export async function sendEmail(
       transport.close();
     }
   },
+  checkEligibility?: MarketingEligibilityCheck,
 ): Promise<{ messageId: string }> {
   const recipient = input.to.trim().toLowerCase();
   if (
@@ -296,13 +313,31 @@ export async function sendEmail(
   if (!settings.allowedRecipients.some((allowed) => allowed.trim().toLowerCase() === recipient)) {
     throw new EmailSendError('RECIPIENT_NOT_APPROVED');
   }
+  let eligiblePersonId: string | undefined;
+  if (input.purpose === 'MARKETING') {
+    if (!input.topic?.trim() || !checkEligibility) throw new EmailSendError('ELIGIBILITY_UNAVAILABLE');
+    let eligibility: MarketingEligibility;
+    try {
+      eligibility = await checkEligibility(recipient, input.topic);
+    } catch {
+      throw new EmailSendError('ELIGIBILITY_UNAVAILABLE');
+    }
+    if (!eligibility.allowed) {
+      if (eligibility.reason === 'NO_CONSENT') throw new EmailSendError('CONSENT_REQUIRED');
+      if (eligibility.reason === 'SUPPRESSED') throw new EmailSendError('SUPPRESSED');
+      if (eligibility.reason === 'INVALID_EMAIL') throw new EmailSendError('INVALID_MESSAGE');
+      throw new EmailSendError('ELIGIBILITY_UNAVAILABLE');
+    }
+    if (!eligibility.personId.trim()) throw new EmailSendError('ELIGIBILITY_UNAVAILABLE');
+    eligiblePersonId = eligibility.personId;
+  }
   const parent = input.replyToMessageId ? store.findByMessageId([input.replyToMessageId]) : null;
   if (input.replyToMessageId && !parent) throw new EmailSendError('INVALID_MESSAGE');
   const references = parent
     ? [...new Set([...parent.references, ...(parent.messageId ? [parent.messageId] : [])])]
     : [];
   const contentHash = createHash('sha256')
-    .update(`${recipient}\n${input.subject}\n${input.text}\n${parent?.messageId ?? ''}\n${input.contactId ?? ''}\n${input.applicationId ?? ''}`)
+    .update(`${recipient}\n${input.subject}\n${input.text}\n${parent?.messageId ?? ''}\n${eligiblePersonId ?? input.contactId ?? ''}\n${input.applicationId ?? ''}`)
     .digest('hex');
   const messageId = `<${createHash('sha256').update(input.key).digest('hex')}@flolabsinnovations.com>`;
   const email: StoredEmail = {
@@ -317,7 +352,7 @@ export async function sendEmail(
     subject: input.subject,
     date: new Date().toISOString(),
     text: input.text,
-    contactId: parent ? parent.contactId : input.contactId ?? null,
+    contactId: parent ? parent.contactId : eligiblePersonId ?? input.contactId ?? null,
     applicationId: parent ? parent.applicationId : input.applicationId ?? null,
     providerId: null,
     mailbox: null,

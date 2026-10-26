@@ -46,6 +46,7 @@ try {
     to: result.draft.to,
     subject: result.draft.subject,
     text: result.draft.body,
+    purpose: 'HR_TEST',
     contactId: result.contactId,
     applicationId: result.applicationId,
   });

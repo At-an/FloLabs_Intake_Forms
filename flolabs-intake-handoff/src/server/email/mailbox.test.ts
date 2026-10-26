@@ -50,6 +50,7 @@ describe('SMTP sending', () => {
       to: 'approved@example.test',
       subject: 'Test',
       text: 'Safe test content',
+      purpose: 'HR_TEST',
       contactId: 'person-1',
       applicationId: 'application-1',
     }, deliver);
@@ -70,20 +71,84 @@ describe('SMTP sending', () => {
       to: 'person@example.test',
       subject: 'Test',
       text: 'Test',
+      purpose: 'HR_TEST',
     }, deliver)).rejects.toMatchObject({ code: 'RECIPIENT_NOT_APPROVED' });
     await expect(sendEmail(smtp, createStore(), {
       key: 'invalid',
       to: 'not-an-email',
       subject: '',
       text: '',
+      purpose: 'HR_TEST',
     }, deliver)).rejects.toMatchObject({ code: 'INVALID_MESSAGE' });
     expect(deliver).not.toHaveBeenCalled();
+  });
+
+  it('requires explicit consent and an active-suppression check for marketing sends', async () => {
+    const deliver = vi.fn(async (message: { messageId: string }) => ({
+      messageId: message.messageId,
+      accepted: ['approved@example.test'],
+    }));
+    const message = {
+      key: 'marketing-test',
+      to: 'approved@example.test',
+      subject: 'Test newsletter',
+      text: 'Approved test content',
+      purpose: 'MARKETING' as const,
+      topic: 'newsletter',
+    };
+    await expect(sendEmail(smtp, createStore(), message, deliver))
+      .rejects.toMatchObject({ code: 'ELIGIBILITY_UNAVAILABLE' });
+    await expect(sendEmail(smtp, createStore(), { ...message, topic: undefined }, deliver, async () => ({
+      allowed: true,
+      personId: 'consented-person',
+    }))).rejects.toMatchObject({ code: 'ELIGIBILITY_UNAVAILABLE' });
+    await expect(sendEmail(smtp, createStore(), message, deliver, async () => ({
+      allowed: false,
+      reason: 'NO_CONSENT',
+    }))).rejects.toMatchObject({ code: 'CONSENT_REQUIRED' });
+    await expect(sendEmail(smtp, createStore(), message, deliver, async () => ({
+      allowed: false,
+      reason: 'SUPPRESSED',
+    }))).rejects.toMatchObject({ code: 'SUPPRESSED' });
+    await expect(sendEmail(smtp, createStore(), message, deliver, async () => {
+      throw new Error('suppression database unavailable');
+    })).rejects.toMatchObject({ code: 'ELIGIBILITY_UNAVAILABLE' });
+    await expect(sendEmail(smtp, createStore(), message, deliver, async () => ({
+      allowed: false,
+      reason: 'LOOKUP_FAILED',
+    }))).rejects.toMatchObject({ code: 'ELIGIBILITY_UNAVAILABLE' });
+    expect(deliver).not.toHaveBeenCalled();
+  });
+
+  it('associates eligible marketing messages with the consented Twenty person', async () => {
+    const store = createStore();
+    const deliver = vi.fn(async (message: { messageId: string }) => ({
+      messageId: message.messageId,
+      accepted: ['approved@example.test'],
+    }));
+    const eligibility = vi.fn(async (email: string, topic: string) => {
+      expect(email).toBe('approved@example.test');
+      expect(topic).toBe('newsletter');
+      return { allowed: true as const, personId: 'consented-person' };
+    });
+    const result = await sendEmail(smtp, store, {
+      key: 'eligible-marketing',
+      to: 'approved@example.test',
+      subject: 'Test newsletter',
+      text: 'Approved test content',
+      purpose: 'MARKETING',
+      topic: 'newsletter',
+      contactId: 'unverified-caller-person',
+    }, deliver, eligibility);
+    expect(eligibility).toHaveBeenCalledOnce();
+    expect(store.findByMessageId([result.messageId])).toMatchObject({ contactId: 'consented-person' });
+    expect(deliver).toHaveBeenCalledOnce();
   });
 
   it('does not resubmit duplicate idempotency keys', async () => {
     const store = createStore();
     const deliver = vi.fn(async (message: { messageId: string }) => ({ messageId: message.messageId, accepted: ['approved@example.test'] }));
-    const message = { key: 'once', to: 'approved@example.test', subject: 'Test', text: 'Body' };
+    const message = { key: 'once', to: 'approved@example.test', subject: 'Test', text: 'Body', purpose: 'HR_TEST' as const };
     await sendEmail(smtp, store, message, deliver);
     await expect(sendEmail(smtp, store, message, deliver)).rejects.toMatchObject({ code: 'DUPLICATE' });
     await expect(sendEmail(smtp, store, { ...message, text: 'Different body' }, deliver))
@@ -102,6 +167,7 @@ describe('SMTP sending', () => {
       to: 'approved@example.test',
       subject: 'Original',
       text: 'Original message',
+      purpose: 'HR_TEST',
       contactId: 'person-1',
       applicationId: 'application-1',
     }, deliver);
@@ -110,6 +176,7 @@ describe('SMTP sending', () => {
       to: 'approved@example.test',
       subject: 'Re: Original',
       text: 'Reply body',
+      purpose: 'HR_TEST',
       replyToMessageId: original.messageId,
     }, deliver);
     expect(deliver.mock.calls[1]?.[0]).toMatchObject({
@@ -131,6 +198,7 @@ describe('SMTP sending', () => {
       to: 'approved@example.test',
       subject: 'Test',
       text: 'Body',
+      purpose: 'HR_TEST',
     }, async () => {
       throw new Error(`auth failed: ${smtp.password}`);
     }).catch((error: unknown) => error);
@@ -142,6 +210,7 @@ describe('SMTP sending', () => {
         to: 'approved@example.test',
         subject: 'Test',
         text: 'Body',
+        purpose: 'HR_TEST',
       }, async () => ({ messageId: 'unused', accepted: ['approved@example.test'] }));
       expect.unreachable();
     } catch (error) {
@@ -154,6 +223,7 @@ describe('SMTP sending', () => {
       to: 'approved@example.test',
       subject: 'Test',
       text: 'Body',
+      purpose: 'HR_TEST',
     }, async () => {
       throw new Error(`socket timeout ${smtp.password}`);
     }).catch((error: unknown) => error);
