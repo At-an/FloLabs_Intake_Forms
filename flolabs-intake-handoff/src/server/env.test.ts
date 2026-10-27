@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { EnvError, parseEnv, TURNSTILE_TEST_KEYS } from './env';
+import { EnvError, parseEmailEnvironment, parseEnv, TURNSTILE_TEST_KEYS } from './env';
 
 const validKey = 'k'.repeat(40);
 
@@ -7,6 +7,16 @@ describe('parseEnv', () => {
   it('accepts a valid environment and strips trailing slashes from the base URL', () => {
     const env = parseEnv({ TWENTY_BASE_URL: 'https://crm.example.com//', TWENTY_API_KEY: validKey });
     expect(env.TWENTY_BASE_URL).toBe('https://crm.example.com');
+  });
+
+  it('accepts suppression storage only when both AWS settings are present', () => {
+    const base = { TWENTY_BASE_URL: 'https://crm.example.com', TWENTY_API_KEY: validKey };
+    expect(parseEnv({ ...base, AWS_REGION: 'eu-west-1', SUPPRESSION_TABLE_NAME: 'flolabs-dev-email-suppressions' }))
+      .toMatchObject({ AWS_REGION: 'eu-west-1', SUPPRESSION_TABLE_NAME: 'flolabs-dev-email-suppressions' });
+    expect(() => parseEnv({ ...base, AWS_REGION: 'eu-west-1' })).toThrow(/SUPPRESSION_TABLE_NAME/);
+    expect(() => parseEnv({ ...base, SUPPRESSION_TABLE_NAME: 'flolabs-dev-email-suppressions' })).toThrow(
+      /SUPPRESSION_TABLE_NAME/,
+    );
   });
 
   it('names every missing variable', () => {
@@ -80,5 +90,78 @@ describe('parseEnv', () => {
 
   it('rejects a link secret shorter than 32 characters', () => {
     expect(() => parseEnv({ TWENTY_BASE_URL: 'https://crm.example.com', TWENTY_API_KEY: validKey, LINK_TOKEN_SECRET: 'short' })).toThrow(/LINK_TOKEN_SECRET/);
+  });
+
+  it('accepts complete implicit-TLS mailbox configuration only with a test database and recipient allowlist', () => {
+    const base = {
+      TWENTY_BASE_URL: 'https://crm.example.com',
+      TWENTY_API_KEY: validKey,
+      CRM_EMAIL_IMAP_HOST: 'flolabsinnovations.com',
+      CRM_EMAIL_IMAP_PORT: '993',
+      CRM_EMAIL_IMAP_USERNAME: 'crm.test1@flolabsinnovations.com',
+      CRM_EMAIL_IMAP_PASSWORD: 'private-value',
+      CRM_EMAIL_SMTP_HOST: 'flolabsinnovations.com',
+      CRM_EMAIL_SMTP_PORT: '465',
+      CRM_EMAIL_SMTP_USERNAME: 'crm.test1@flolabsinnovations.com',
+      CRM_EMAIL_SMTP_PASSWORD: 'private-value',
+      CRM_EMAIL_ALLOWED_RECIPIENTS: 'crm.test1@flolabsinnovations.com, test@example.com',
+      CRM_EMAIL_DATABASE_PATH: '.local/email.sqlite',
+      CRM_EMAIL_TEST_COMMANDS_ENABLED: 'true',
+    };
+    expect(parseEnv(base)).toMatchObject({
+      CRM_EMAIL_IMAP_PORT: 993,
+      CRM_EMAIL_SMTP_PORT: 465,
+      CRM_EMAIL_DATABASE_PATH: '.local/email.sqlite',
+    });
+  });
+
+  it.each([
+    { CRM_EMAIL_SMTP_HOST: 'flolabsinnovations.com' },
+    { CRM_EMAIL_IMAP_PASSWORD: 'private-value' },
+    { CRM_EMAIL_SMTP_PORT: '587' },
+    { CRM_EMAIL_IMAP_PORT: '143' },
+    { CRM_EMAIL_SMTP_HOST: 'flolabsinnovations.com', CRM_EMAIL_ALLOWED_RECIPIENTS: 'not-an-address' },
+  ])('rejects incomplete, non-TLS, or invalid mailbox settings', (mailSettings) => {
+    const base = { TWENTY_BASE_URL: 'https://crm.example.com', TWENTY_API_KEY: validKey };
+    expect(() => parseEnv({ ...base, ...mailSettings })).toThrow(EnvError);
+  });
+
+  it('does not include mailbox passwords in configuration errors', () => {
+    const password = 'do-not-disclose-this-value';
+    try {
+      parseEnv({
+        TWENTY_BASE_URL: 'https://crm.example.com',
+        TWENTY_API_KEY: validKey,
+        CRM_EMAIL_SMTP_HOST: 'flolabsinnovations.com',
+        CRM_EMAIL_SMTP_USERNAME: 'crm.test1@flolabsinnovations.com',
+        CRM_EMAIL_SMTP_PASSWORD: password,
+        CRM_EMAIL_SMTP_PORT: '465',
+      });
+      expect.unreachable();
+    } catch (error) {
+      expect(String(error)).not.toContain(password);
+      expect(String(error)).toContain('CRM_EMAIL_ALLOWED_RECIPIENTS');
+    }
+  });
+
+  it('validates mailbox sync configuration without requiring unrelated Twenty credentials', () => {
+    const env = parseEmailEnvironment({
+      CRM_EMAIL_IMAP_HOST: 'flolabsinnovations.com',
+      CRM_EMAIL_IMAP_PORT: '993',
+      CRM_EMAIL_IMAP_USERNAME: 'crm.test1@flolabsinnovations.com',
+      CRM_EMAIL_IMAP_PASSWORD: 'private-value',
+      CRM_EMAIL_DATABASE_PATH: '.local/email.sqlite',
+      CRM_EMAIL_TEST_COMMANDS_ENABLED: 'true',
+    });
+    expect(env.CRM_EMAIL_IMAP_USERNAME).toBe('crm.test1@flolabsinnovations.com');
+    expect(() => parseEmailEnvironment({ CRM_EMAIL_IMAP_PASSWORD: 'private-value' })).toThrow(EnvError);
+  });
+
+  it('accepts an explicit false value for disabled email test commands', () => {
+    expect(parseEnv({
+      TWENTY_BASE_URL: 'https://crm.example.com',
+      TWENTY_API_KEY: validKey,
+      CRM_EMAIL_TEST_COMMANDS_ENABLED: 'false',
+    }).CRM_EMAIL_TEST_COMMANDS_ENABLED).toBe('false');
   });
 });

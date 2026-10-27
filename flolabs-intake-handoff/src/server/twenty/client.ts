@@ -107,6 +107,15 @@ export function createTwentyClient({ baseUrl, apiKey, fetch: fetchImpl = fetch, 
       return first(data.sites);
     },
 
+    async findPersonById(id: string): Promise<Person | null> {
+      const data = await request<{ people: Connection<Person> }>(
+        'twenty.findPersonById',
+        `query FindPersonById($id: UUID!) { people(filter: { id: { eq: $id } }, first: 1) { edges { node { ${PERSON_FIELDS} } } } }`,
+        { id },
+      );
+      return first(data.people);
+    },
+
     async findPersonByEmail(email: string): Promise<Person | null> {
       const data = await request<{ people: Connection<Person> }>(
         'twenty.findPersonByEmail',

@@ -9,3 +9,8 @@ out/
 coverage/
 next-env.d.ts
 *.tsbuildinfo
+infra/aws/dist/
+.local/
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal

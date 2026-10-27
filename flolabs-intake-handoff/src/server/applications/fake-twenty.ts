@@ -38,6 +38,7 @@ export function fakeTwenty(
   // Writable, so a test can replace one operation (e.g. to make it fail).
   const twenty: { -readonly [K in keyof TwentyClient]: TwentyClient[K] } = {
     findSiteByKey: async (key) => SITES.find((s) => s.siteId === key) ?? null,
+    findPersonById: async (id) => people.find((p) => p.id === id) ?? null,
     findPersonByEmail: async (email) => people.find((p) => p.emails?.primaryEmail === email) ?? null,
     findApplicationBySubmissionKey: async (key) => {
       const found = applications.find((a) => a.submissionKey === key);
