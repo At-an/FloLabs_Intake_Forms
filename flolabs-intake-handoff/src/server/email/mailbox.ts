@@ -5,8 +5,8 @@ import { dirname, isAbsolute, relative, resolve, sep } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { ImapFlow, type FetchMessageObject } from 'imapflow';
 import { simpleParser } from 'mailparser';
-import nodemailer from 'nodemailer';
 import { z } from 'zod';
+import { normalizeTopic } from '../suppression/normalize';
 
 const emailAddress = z.string().email();
 const MAX_MESSAGE_BYTES = 1024 * 1024;
@@ -42,13 +42,23 @@ export type StoredEmail = {
   uidValidity: string | null;
   uid: number | null;
   contentHash: string | null;
-  state: 'pending' | 'unknown' | 'sent' | 'received';
+  state: 'pending' | 'unknown' | 'failed' | 'sent' | 'received';
+};
+
+export type EmailSuppressionReason = 'MANUAL_TEST_BLOCK' | 'UNSUBSCRIBED' | 'HARD_BOUNCE' | 'COMPLAINT';
+export type EmailSuppression = {
+  email: string;
+  reason: EmailSuppressionReason;
+  createdAt: string;
 };
 
 export type EmailStore = {
   reserveOutbound(email: StoredEmail): boolean;
-  updateOutbound(key: string, state: 'unknown' | 'sent', providerId?: string): void;
-  findByMessageId(messageIds: string[]): StoredEmail | null;
+  reserveOutboundUnlessSuppressed(email: StoredEmail): { reserved: boolean; suppressionReason?: EmailSuppressionReason };
+  updateOutbound(key: string, state: 'unknown' | 'failed' | 'sent', providerId?: string): void;
+  getSuppression(email: string): EmailSuppression | null;
+  addSuppression(email: string, reason: EmailSuppressionReason): { created: boolean; reason: EmailSuppressionReason };
+  findByMessageId(messageIds: string[], correspondent?: string): StoredEmail | null;
   saveInbound(email: StoredEmail, uidValidity: string, lastUid: number): boolean;
   getCursor(mailbox: string, uidValidity: string): number;
   listMessages(): Array<Pick<StoredEmail, 'direction' | 'messageId' | 'threadId' | 'contactId' | 'applicationId' | 'state'>>;
@@ -108,12 +118,20 @@ export function createSqliteEmailStore(databasePath: string): EmailStore {
       state TEXT NOT NULL
     );
     CREATE INDEX IF NOT EXISTS email_messages_message_id ON email_messages(message_id);
+    CREATE UNIQUE INDEX IF NOT EXISTS email_messages_inbound_content_hash
+      ON email_messages(mailbox, content_hash)
+      WHERE direction = 'inbound' AND content_hash IS NOT NULL;
     CREATE UNIQUE INDEX IF NOT EXISTS email_messages_imap_uid
       ON email_messages(mailbox, uid_validity, uid) WHERE direction = 'inbound';
     CREATE TABLE IF NOT EXISTS email_sync_cursor (
       mailbox TEXT PRIMARY KEY,
       uid_validity TEXT NOT NULL,
       last_uid INTEGER NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS email_suppressions (
+      email TEXT PRIMARY KEY,
+      reason TEXT NOT NULL CHECK (reason IN ('MANUAL_TEST_BLOCK', 'UNSUBSCRIBED', 'HARD_BOUNCE', 'COMPLAINT')),
+      created_at TEXT NOT NULL
     );
   `);
 
@@ -128,6 +146,8 @@ export function createSqliteEmailStore(databasePath: string): EmailStore {
       $providerId, $mailbox, $uidValidity, $uid, $contentHash, $state
     )
   `);
+  const getSuppression = db.prepare('SELECT email, reason, created_at FROM email_suppressions WHERE email = ?');
+  const insertSuppression = db.prepare('INSERT OR IGNORE INTO email_suppressions (email, reason, created_at) VALUES (?, ?, ?)');
 
   function insertEmail(email: StoredEmail): boolean {
     return insert.run({
@@ -158,19 +178,76 @@ export function createSqliteEmailStore(databasePath: string): EmailStore {
       return insertEmail(email);
     },
 
+    reserveOutboundUnlessSuppressed(email) {
+      db.exec('BEGIN IMMEDIATE');
+      try {
+        const recipient = email.to[0]?.trim().toLowerCase();
+        const suppression = recipient ? getSuppression.get(recipient) as
+          | { reason: EmailSuppressionReason }
+          | undefined : undefined;
+        if (suppression) {
+          db.exec('COMMIT');
+          return { reserved: false, suppressionReason: suppression.reason };
+        }
+        const reserved = insertEmail(email);
+        db.exec('COMMIT');
+        return { reserved };
+      } catch (error) {
+        db.exec('ROLLBACK');
+        throw error;
+      }
+    },
+
     updateOutbound(key, state, providerId) {
       const result = db.prepare('UPDATE email_messages SET state = ?, provider_id = ? WHERE key = ? AND direction = ?')
         .run(state, providerId ?? null, key, 'outbound');
       if (result.changes !== 1) throw new Error('EMAIL_STORE_UPDATE_FAILED');
     },
 
-    findByMessageId(messageIds) {
-      const lookup = db.prepare('SELECT * FROM email_messages WHERE message_id = ? ORDER BY rowid LIMIT 1');
+    getSuppression(email) {
+      const normalizedEmail = email.trim().toLowerCase();
+      const row = getSuppression.get(normalizedEmail) as
+        | { email: string; reason: EmailSuppressionReason; created_at: string }
+        | undefined;
+      return row ? { email: row.email, reason: row.reason, createdAt: row.created_at } : null;
+    },
+
+    addSuppression(email, reason) {
+      const normalizedEmail = email.trim().toLowerCase();
+      if (!emailAddress.safeParse(normalizedEmail).success) throw new Error('INVALID_SUPPRESSION_EMAIL');
+      const inserted = insertSuppression.run(normalizedEmail, reason, new Date().toISOString());
+      const row = getSuppression.get(normalizedEmail) as
+        | { reason: EmailSuppressionReason }
+        | undefined;
+      if (!row) throw new Error('EMAIL_SUPPRESSION_STORE_FAILED');
+      return { created: inserted.changes === 1, reason: row.reason };
+    },
+
+    findByMessageId(messageIds, correspondent) {
+      const lookup = db.prepare('SELECT * FROM email_messages WHERE message_id = ? ORDER BY rowid');
+      const normalizedCorrespondent = correspondent?.trim().toLowerCase();
+      const candidates: StoredEmail[] = [];
       for (const messageId of messageIds) {
-        const row = lookup.get(messageId) as Record<string, unknown> | undefined;
-        if (row) return rowToEmail(row);
+        const rows = lookup.all(messageId) as Array<Record<string, unknown>>;
+        for (const row of rows) {
+          const email = rowToEmail(row);
+          if (
+            normalizedCorrespondent &&
+            (email.direction === 'outbound'
+              ? !email.to.some((address) => address.trim().toLowerCase() === normalizedCorrespondent)
+              : email.from.trim().toLowerCase() !== normalizedCorrespondent)
+          ) {
+            continue;
+          }
+          candidates.push(email);
+        }
       }
-      return null;
+      if (!candidates.length) return null;
+      const threads = new Set(candidates.map((candidate) => candidate.threadId));
+      const contactIds = new Set(candidates.map((candidate) => candidate.contactId).filter((id): id is string => !!id));
+      const applicationIds = new Set(candidates.map((candidate) => candidate.applicationId).filter((id): id is string => !!id));
+      if (threads.size !== 1 || contactIds.size > 1 || applicationIds.size > 1) return null;
+      return candidates[0] ?? null;
     },
 
     saveInbound(email, uidValidity, lastUid) {
@@ -225,28 +302,33 @@ export class EmailSendError extends Error {
   constructor(readonly code:
     | 'INVALID_MESSAGE'
     | 'RECIPIENT_NOT_APPROVED'
+    | 'RECIPIENT_SUPPRESSED'
     | 'CONSENT_REQUIRED'
     | 'SUPPRESSED'
     | 'ELIGIBILITY_UNAVAILABLE'
     | 'DUPLICATE'
     | 'IDEMPOTENCY_CONFLICT'
     | 'STORE_FAILED'
-    | 'SMTP_FAILED'
-    | 'DELIVERY_UNKNOWN') {
+    | 'PROVIDER_AUTH_FAILED'
+    | 'PROVIDER_REJECTED'
+    | 'RATE_LIMITED'
+    | 'DELIVERY_UNKNOWN', options: { providerInvoked?: boolean; suppressionReason?: EmailSuppressionReason } = {}) {
     super(`Email send failed: ${code}`);
     this.name = 'EmailSendError';
+    this.providerInvoked = options.providerInvoked ?? false;
+    this.suppressionReason = options.suppressionReason;
   }
+
+  readonly providerInvoked: boolean;
+  readonly suppressionReason: EmailSuppressionReason | undefined;
 }
 
-export type SmtpSettings = {
-  host: string;
-  port: 465;
-  username: string;
-  password: string;
+export type EmailDeliverySettings = {
+  senderEmail: string;
   allowedRecipients: string[];
 };
 
-type SmtpMessage = {
+type OutboundEmailMessage = {
   from: string;
   to: string;
   subject: string;
@@ -255,14 +337,22 @@ type SmtpMessage = {
   inReplyTo?: string;
   references?: string[];
 };
-type SmtpResponse = { messageId?: string; accepted?: Array<string | { address: string }> };
+type EmailDeliveryResponse = { messageId?: string; accepted?: Array<string | { address: string }> };
 type MarketingEligibility =
   | { allowed: true; personId: string }
-  | { allowed: false; reason: 'INVALID_EMAIL' | 'NO_CONSENT' | 'SUPPRESSED' | 'LOOKUP_FAILED' };
+  | { allowed: false; reason: 'INVALID_EMAIL' | 'INVALID_TOPIC' | 'NO_CONSENT' | 'SUPPRESSED' | 'LOOKUP_FAILED' };
 type MarketingEligibilityCheck = (email: string, topic: string) => Promise<MarketingEligibility>;
+export type EmailProviderErrorCode = 'PROVIDER_AUTH_FAILED' | 'PROVIDER_REJECTED' | 'RATE_LIMITED' | 'DELIVERY_UNKNOWN';
+
+export class EmailProviderError extends Error {
+  constructor(readonly code: EmailProviderErrorCode) {
+    super(`Email provider failed: ${code}`);
+    this.name = 'EmailProviderError';
+  }
+}
 
 export async function sendEmail(
-  settings: SmtpSettings,
+  settings: EmailDeliverySettings,
   store: EmailStore,
   input: {
     key: string;
@@ -275,27 +365,9 @@ export async function sendEmail(
     applicationId?: string;
     replyToMessageId?: string;
   },
-  deliver: (message: SmtpMessage) => Promise<SmtpResponse> = async (message) => {
-    const transport = nodemailer.createTransport({
-      host: settings.host,
-      port: settings.port,
-      secure: true,
-      auth: { user: settings.username, pass: settings.password },
-      logger: false,
-      debug: false,
-      connectionTimeout: 10_000,
-      greetingTimeout: 10_000,
-      socketTimeout: 20_000,
-      tls: { minVersion: 'TLSv1.2' },
-    });
-    try {
-      return await transport.sendMail(message);
-    } finally {
-      transport.close();
-    }
-  },
+  deliver: (message: OutboundEmailMessage) => Promise<EmailDeliveryResponse>,
   checkEligibility?: MarketingEligibilityCheck,
-): Promise<{ messageId: string }> {
+): Promise<{ messageId: string; providerMessageId?: string }> {
   const recipient = input.to.trim().toLowerCase();
   if (
     !emailAddress.safeParse(recipient).success ||
@@ -310,15 +382,24 @@ export async function sendEmail(
   ) {
     throw new EmailSendError('INVALID_MESSAGE');
   }
+  if (input.purpose !== 'HR_TEST' && input.purpose !== 'MARKETING') {
+    throw new EmailSendError('INVALID_MESSAGE');
+  }
   if (!settings.allowedRecipients.some((allowed) => allowed.trim().toLowerCase() === recipient)) {
     throw new EmailSendError('RECIPIENT_NOT_APPROVED');
   }
   let eligiblePersonId: string | undefined;
   if (input.purpose === 'MARKETING') {
     if (!input.topic?.trim() || !checkEligibility) throw new EmailSendError('ELIGIBILITY_UNAVAILABLE');
+    let topic: string;
+    try {
+      topic = normalizeTopic(input.topic ?? '');
+    } catch {
+      throw new EmailSendError('INVALID_MESSAGE');
+    }
     let eligibility: MarketingEligibility;
     try {
-      eligibility = await checkEligibility(recipient, input.topic);
+      eligibility = await checkEligibility(recipient, topic);
     } catch {
       throw new EmailSendError('ELIGIBILITY_UNAVAILABLE');
     }
@@ -326,6 +407,7 @@ export async function sendEmail(
       if (eligibility.reason === 'NO_CONSENT') throw new EmailSendError('CONSENT_REQUIRED');
       if (eligibility.reason === 'SUPPRESSED') throw new EmailSendError('SUPPRESSED');
       if (eligibility.reason === 'INVALID_EMAIL') throw new EmailSendError('INVALID_MESSAGE');
+      if (eligibility.reason === 'INVALID_TOPIC') throw new EmailSendError('INVALID_MESSAGE');
       throw new EmailSendError('ELIGIBILITY_UNAVAILABLE');
     }
     if (!eligibility.personId.trim()) throw new EmailSendError('ELIGIBILITY_UNAVAILABLE');
@@ -347,7 +429,7 @@ export async function sendEmail(
     messageId,
     inReplyTo: parent?.messageId ?? null,
     references,
-    from: settings.username,
+    from: settings.senderEmail,
     to: [recipient],
     subject: input.subject,
     date: new Date().toISOString(),
@@ -361,13 +443,16 @@ export async function sendEmail(
     contentHash,
     state: 'pending',
   };
-  let reserved: boolean;
+  let reservation: { reserved: boolean; suppressionReason?: EmailSuppressionReason };
   try {
-    reserved = store.reserveOutbound(email);
+    reservation = store.reserveOutboundUnlessSuppressed(email);
   } catch {
-    throw new EmailSendError('STORE_FAILED');
+    throw new EmailSendError('ELIGIBILITY_UNAVAILABLE');
   }
-  if (!reserved) {
+  if (reservation.suppressionReason) {
+    throw new EmailSendError('RECIPIENT_SUPPRESSED', { suppressionReason: reservation.suppressionReason });
+  }
+  if (!reservation.reserved) {
     const existing = store.findByMessageId([messageId]);
     if (existing?.contentHash !== contentHash) throw new EmailSendError('IDEMPOTENCY_CONFLICT');
     throw new EmailSendError('DUPLICATE');
@@ -375,7 +460,7 @@ export async function sendEmail(
 
   try {
     const response = await deliver({
-      from: settings.username,
+      from: settings.senderEmail,
       to: recipient,
       subject: input.subject,
       text: input.text,
@@ -386,38 +471,44 @@ export async function sendEmail(
     const accepted = response.accepted?.some((address) =>
       (typeof address === 'string' ? address : address.address).trim().toLowerCase() === recipient,
     );
-    if (!accepted) throw new EmailSendError('SMTP_FAILED');
+    if (!accepted) throw new EmailProviderError('PROVIDER_REJECTED');
     const providerId = response.messageId && /^[\x21-\x7e]{1,998}$/.test(response.messageId) ? response.messageId : undefined;
     try {
       store.updateOutbound(email.key, 'sent', providerId);
     } catch {
-      throw new EmailSendError('DELIVERY_UNKNOWN');
+      throw new EmailSendError('DELIVERY_UNKNOWN', { providerInvoked: true });
     }
-    return { messageId };
+    return { messageId, ...(providerId ? { providerMessageId: providerId } : {}) };
   } catch (error) {
     try {
-      store.updateOutbound(email.key, 'unknown');
+      const definitivelyRejected =
+        error instanceof EmailProviderError && error.code !== 'DELIVERY_UNKNOWN';
+      store.updateOutbound(email.key, definitivelyRejected ? 'failed' : 'unknown');
     } catch {
-      throw error instanceof EmailSendError ? error : new EmailSendError('DELIVERY_UNKNOWN');
+      throw error instanceof EmailSendError ? error : new EmailSendError('DELIVERY_UNKNOWN', { providerInvoked: true });
     }
     if (error instanceof EmailSendError) throw error;
-    throw new EmailSendError('SMTP_FAILED');
+    if (error instanceof EmailProviderError) {
+      throw new EmailSendError(error.code, { providerInvoked: true });
+    }
+    throw new EmailSendError('DELIVERY_UNKNOWN', { providerInvoked: true });
   }
 }
 
 export class EmailSyncError extends Error {
-  constructor(readonly code: 'IMAP_FAILED' | 'MESSAGE_TOO_LARGE' | 'INVALID_MESSAGE') {
+  constructor(readonly code: 'IMAP_FAILED' | 'MESSAGE_TOO_LARGE' | 'INVALID_MESSAGE' | 'LIVE_HR_MAILBOX_FORBIDDEN') {
     super(`Email synchronization failed: ${code}`);
     this.name = 'EmailSyncError';
   }
 }
 
-export type ParsedInbound = Omit<StoredEmail, 'key' | 'direction' | 'threadId' | 'contactId' | 'applicationId' | 'providerId' | 'mailbox' | 'uidValidity' | 'uid' | 'contentHash' | 'state'>;
+export type ParsedInbound = Omit<StoredEmail, 'key' | 'direction' | 'threadId' | 'contactId' | 'applicationId' | 'providerId' | 'mailbox' | 'uidValidity' | 'uid' | 'state'>;
 
 export async function parseInboundMessage(source: Buffer | string, internalDate: Date): Promise<ParsedInbound> {
   if (Buffer.byteLength(source) > MAX_MESSAGE_BYTES) throw new EmailSyncError('MESSAGE_TOO_LARGE');
   try {
-    const parsed = await simpleParser(source, { skipHtmlToText: true, maxHtmlLengthToParse: 0 });
+    const rawSource = Buffer.isBuffer(source) ? source : Buffer.from(source);
+    const parsed = await simpleParser(rawSource, { skipHtmlToText: true, maxHtmlLengthToParse: 0 });
     const from = parsed.from?.value[0]?.address?.trim().toLowerCase();
     if (!from || !emailAddress.safeParse(from).success) throw new EmailSyncError('INVALID_MESSAGE');
     const to = parsed.to ? (Array.isArray(parsed.to) ? parsed.to : [parsed.to]).flatMap((item) => item.value.map((entry) => entry.address?.trim().toLowerCase() ?? '').filter(Boolean)) : [];
@@ -436,6 +527,7 @@ export async function parseInboundMessage(source: Buffer | string, internalDate:
       subject: (parsed.subject ?? '').slice(0, 998),
       date: (parsed.date ?? internalDate).toISOString(),
       text: (parsed.text ?? '').slice(0, MAX_STORED_TEXT_CHARS),
+      contentHash: createHash('sha256').update(rawSource).digest('hex'),
     };
   } catch (error) {
     if (error instanceof EmailSyncError) throw error;
@@ -456,31 +548,44 @@ export type EmailImapClient = {
   mailbox: false | { uidValidity: number | bigint };
 };
 
+type EmailImapSettings = {
+  host: string;
+  port: 993;
+  username: string;
+  password: string;
+  mailbox?: string;
+};
+
 export async function synchronizeInbox(
-  settings: { host: string; port: 993; username: string; password: string },
+  settings: EmailImapSettings,
   store: EmailStore,
-  createClient: (settings: { host: string; port: 993; username: string; password: string }) => EmailImapClient = (config) =>
+  createClient: (settings: EmailImapSettings) => EmailImapClient = (config) =>
     new ImapFlow({
       host: config.host,
       port: config.port,
       secure: true,
       auth: { user: config.username, pass: config.password },
+      tls: { rejectUnauthorized: true, servername: config.host },
       logger: false,
       socketTimeout: 20_000,
       greetingTimeout: 10_000,
     }),
 ): Promise<{ imported: number; duplicates: number }> {
+  if (settings.username.trim().toLowerCase() === 'hr@flolabsinnovations.com') {
+    throw new EmailSyncError('LIVE_HR_MAILBOX_FORBIDDEN');
+  }
   const client = createClient(settings);
+  const mailboxName = settings.mailbox?.trim() || 'INBOX';
+  const mailboxIdentity = JSON.stringify([settings.username.trim().toLowerCase(), mailboxName]);
   let operationFailed = false;
   try {
     await client.connect();
-    const lock = await client.getMailboxLock('INBOX');
+    const lock = await client.getMailboxLock(mailboxName);
     try {
       const mailbox = client.mailbox;
       if (!mailbox) throw new EmailSyncError('IMAP_FAILED');
       const uidValidity = String(mailbox.uidValidity);
-      const mailboxAddress = settings.username.trim().toLowerCase();
-      const lastUid = store.getCursor(mailboxAddress, uidValidity);
+      const lastUid = store.getCursor(mailboxIdentity, uidValidity);
       const uids = await client.search({ uid: `${lastUid + 1}:*` }, { uid: true });
       if (!uids || !uids.length) return { imported: 0, duplicates: 0 };
       let imported = 0;
@@ -489,9 +594,11 @@ export async function synchronizeInbox(
         if (message.size && message.size > MAX_MESSAGE_BYTES) throw new EmailSyncError('MESSAGE_TOO_LARGE');
         if (!message.source) throw new EmailSyncError('INVALID_MESSAGE');
         const parsed = await parseInboundMessage(message.source, message.internalDate instanceof Date ? message.internalDate : new Date());
-        const references = parsed.inReplyTo ? [parsed.inReplyTo, ...parsed.references] : parsed.references;
-        const parent = store.findByMessageId(references);
-        const messageUidKey = `${mailboxAddress}:${uidValidity}:${message.uid}`;
+        const references = parsed.inReplyTo
+          ? [...new Set([parsed.inReplyTo, ...parsed.references])]
+          : [...parsed.references].reverse();
+        const parent = store.findByMessageId(references, parsed.from);
+        const messageUidKey = `${mailboxIdentity}:${uidValidity}:${message.uid}`;
         const id = parsed.messageId?.trim();
         const threadId = parent?.threadId ?? id ?? `imap:${createHash('sha256').update(messageUidKey).digest('hex')}`;
         const record: StoredEmail = {
@@ -502,10 +609,9 @@ export async function synchronizeInbox(
           contactId: parent?.contactId ?? null,
           applicationId: parent?.applicationId ?? null,
           providerId: null,
-          mailbox: mailboxAddress,
+          mailbox: mailboxIdentity,
           uidValidity,
           uid: message.uid,
-          contentHash: null,
           state: 'received',
         };
         const added = store.saveInbound(record, uidValidity, message.uid);
